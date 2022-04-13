@@ -29,11 +29,11 @@ def build_p_nom():
     
     OCGT_capacity.name = "OCGT_capacity"
 
-    coal_capacity.to_hdf(snakemake.output.outfile1, key=coal_capacity.name)
+    coal_capacity.to_hdf(snakemake.output.coal_capacity, key=coal_capacity.name)
     
-    CHP_capacity.to_hdf(snakemake.output.outfile2, key=CHP_capacity.name)
+    CHP_capacity.to_hdf(snakemake.output.CHP_capacity, key=CHP_capacity.name)
     
-    OCGT_capacity.to_hdf(snakemake.output.outfile3, key=OCGT_capacity.name)
+    OCGT_capacity.to_hdf(snakemake.output.OCGT_capacity, key=OCGT_capacity.name)
     
 if __name__ == "__main__":
 
@@ -41,6 +41,6 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.output = Dict(outfile1="data/p_nom/coal_p_nom.h5", outfile2="data/p_nom/CHP_p_nom.h5", outfile3="data/p_nom/OCGT_p_nom.h5")
+        snakemake.output = Dict(coal_capacity="data/p_nom/coal_p_nom.h5", CHP_capacity="data/p_nom/CHP_p_nom.h5", OCGT_capacity="data/p_nom/OCGT_p_nom.h5")
         
     build_p_nom
