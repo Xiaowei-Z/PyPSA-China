@@ -1,7 +1,4 @@
-Database Annual by Province,
-OCGT,
-Year£º2020,
-Region,MW
+Province,MW
 Beijing,9458
 Tianjin,3327
 Hebei,800
@@ -33,4 +30,3 @@ Gansu,0
 Qinghai,300
 Ningxia,0
 Xinjiang,0
-Data Sources£º2021 Chinese gas power generation report,
