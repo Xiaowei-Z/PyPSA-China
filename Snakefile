@@ -5,7 +5,6 @@
 # Build capacities in China
 
 rule build_p_nom:
-    input:
     output:
     threads:1
     resources: mem_mb=500
