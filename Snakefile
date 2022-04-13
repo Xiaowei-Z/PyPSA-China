@@ -2,23 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
-from os.path import normpath, exists
-from shutil import copyfile, move
+# Build capacities in China
 
-from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
-HTTP = HTTPRemoteProvider()
-
-if not exists("config.yaml"):
-    copyfile("config.default.yaml", "config.yaml")
-
-configfile: "config.yaml"
-  
-COSTS="data/costs.csv"
-ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
-
-wildcard_constraints:
-    simpl="[a-zA-Z0-9]*|all",
-    clusters="[0-9]+m?|all",
-    ll="(v|c)([0-9\.]+|opt|all)|all",
-    opts="[-+a-zA-Z0-9\.]*"
-    
+rule build_p_nom:
+    input:
+    output:
+    threads:1
+    resources: mem_mb=500
+    script: "scripts/build_p_nom.py"
