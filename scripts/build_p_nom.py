@@ -43,4 +43,4 @@ if __name__ == "__main__":
         snakemake = Dict()
         snakemake.output = Dict(coal_capacity="data/p_nom/coal_p_nom.h5", CHP_capacity="data/p_nom/CHP_p_nom.h5", OCGT_capacity="data/p_nom/OCGT_p_nom.h5")
         
-    build_p_nom
+    build_p_nom()
