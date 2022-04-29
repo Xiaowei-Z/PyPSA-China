@@ -1,16 +1,17 @@
-from functions import *
+import pandas as pd
+from functions import pro_names
 
 def csv_to_df(csv_name=None):
     
-    df = pd.read_csv(csv_name, index_col=0, header=3, skiprows=[35,36,37])
+    df = pd.read_csv(csv_name, index_col=0, header=0)
     
     df = df.apply(pd.to_numeric)
 
-    return df['2016'].reindex(pro_names)
+    return df['2020'].reindex(pro_names)
 
 def build_population():
 
-    population = 1.e3 * csv_to_df(csv_name='data/population/population_from_National_Data.csv')
+    population = 1.e3 * csv_to_df(csv_name='data/population/population_from_National_Data_2020.csv')
 
     population.name = "population"
 
