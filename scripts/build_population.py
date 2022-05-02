@@ -24,6 +24,6 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.output = Dict(outfile="data/population.h5")
+        snakemake.output = Dict(outfile="data/population/population.h5")
 
     build_population()
