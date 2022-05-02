@@ -1,8 +1,10 @@
-from functions import *
-
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
 import atlite
 import xarray as xr
 import subprocess
+from functions import pro_names
 
 def convert_to_gdf(df):
 
@@ -20,7 +22,7 @@ def build_population_map():
     with pd.HDFStore(snakemake.input.infile, mode='r') as store:
         pop_province_count = store['population']
 
-    da = xr.open_dataarray('data/population_density_CFSR_grid.nc')
+    da = xr.open_dataarray('data/population/population_density_CFSR_grid.nc')
 
     pop_ww = da.to_dataframe(name='Population_density')
 
@@ -42,7 +44,7 @@ def build_population_map():
 
     pro_poly.reset_index(inplace=True)
 
-    cutout = atlite.Cutout('China-2016')
+    cutout = atlite.Cutout(snakemake.input.cutout)
 
     c_grid_points = cutout.grid_coordinates()
 
@@ -96,7 +98,8 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.input = Dict(infile="data/population.h5")
-        snakemake.output = Dict(outfile='data/population_gridcell_map.h5')
+        snakemake.input = Dict(infile="data/population/population.h5"，
+                               cutout ="data/cutout/China-2020")
+        snakemake.output = Dict(outfile='data/population/population_gridcell_map.h5')
 
     build_population_map()
