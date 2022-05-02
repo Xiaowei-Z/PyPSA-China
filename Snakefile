@@ -28,8 +28,8 @@ rule build_population:
 if config['enable'].get('build_cutout', False):
     rule build_cutout:
         input: 
-            regions_onshore="resources/regions_onshore.geojson",
-            regions_offshore="resources/regions_offshore.geojson"
+            regions_onshore="data/resources/regions_onshore.geojson",
+            regions_offshore="data/resources/regions_offshore.geojson"
         output: "cutouts/{cutout}.nc"
         log: "logs/build_cutout/{cutout}.log"
         benchmark: "benchmarks/build_cutout_{cutout}" #what is benchmark?
