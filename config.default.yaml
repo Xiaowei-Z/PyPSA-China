@@ -1,3 +1,22 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
+version: 0.1.0
+
+logging:
+  level: INFO
+  format: '%(levelname)s:%(name)s:%(message)s'
+  
+enable:
+  build_cutout: false
+  
+atlite:
+  nprocesses: 4
+  cutouts:
+   China-2020:
+     module: era5
+     x: [73, 136]
+     y: [18, 54]
+     dx: 0.3
+     dy: 0.3
+     time: ['2020', '2020']
