@@ -99,7 +99,7 @@ if __name__ == "__main__":
         from vresutils import Dict
         snakemake = Dict()
         snakemake.input = Dict(infile="data/population/population.h5"，
-                               cutout ="data/cutout/China-2020")
+                               cutout ="data/cutout/China-2020.nc")
         snakemake.output = Dict(outfile='data/population/population_gridcell_map.h5')
 
     build_population_map()
