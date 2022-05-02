@@ -32,7 +32,7 @@ if config['enable'].get('build_cutout', False):
             regions_offshore="resources/regions_offshore.geojson"
         output: "cutouts/{cutout}.nc"
         log: "logs/build_cutout/{cutout}.log"
-        benchmark: "benchmarks/build_cutout_{cutout}"
+        benchmark: "benchmarks/build_cutout_{cutout}" #what is benchmark?
         threads: ATLITE_NPROCESSES
         resources: mem_mb=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
