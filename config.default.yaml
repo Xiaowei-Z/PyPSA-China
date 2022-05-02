@@ -20,3 +20,8 @@ atlite:
      dx: 0.3
      dy: 0.3
      time: ['2020', '2020']
+
+snapshots:
+  start: "2020-01-01"
+  end: "2021-01-01"
+  closed: 'left'
