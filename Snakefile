@@ -4,6 +4,8 @@
 
 # Build capacities in China
 
+ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
+
 rule build_p_nom:
     output:
         coal_capacity = "data/p_nom/coal_p_nom.h5"
@@ -22,6 +24,19 @@ rule build_population:
     threads: 1
     resources: mem_mb=1000
     script: "scripts/build_population.py"
+        
+if config['enable'].get('build_cutout', False):
+    rule build_cutout:
+        input: 
+            regions_onshore="resources/regions_onshore.geojson",
+            regions_offshore="resources/regions_offshore.geojson"
+        output: "cutouts/{cutout}.nc"
+        log: "logs/build_cutout/{cutout}.log"
+        benchmark: "benchmarks/build_cutout_{cutout}"
+        threads: ATLITE_NPROCESSES
+        resources: mem_mb=ATLITE_NPROCESSES * 1000
+        script: "scripts/build_cutout.py"
+    
    
 rule build_population_gridcell_map:
     input:
