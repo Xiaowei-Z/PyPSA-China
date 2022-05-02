@@ -18,16 +18,16 @@ rule build_p_nom:
         
 rule build_population:
     output:
-        outfile='data/population.h5'
+        outfile='data/population/population.h5'
     threads: 1
     resources: mem_mb=1000
     script: 'scripts/build_population.py'
    
 rule build_population_gridcell_map:
     input:
-        infile='data/population.h5',
+        infile='data/population/population.h5',
     output:
-        outfile='data/population_gridcell_map.h5'
+        outfile='data/population/population_gridcell_map.h5'
     threads: 1
     resources: mem_mb=35000
     script: 'scripts/build_population_gridcell_map.py'
