@@ -93,3 +93,12 @@ rule build_energy_totals:
     threads: 1
     resources: mem_mb=10000
     script: "scripts/build_energy_totals.py"
+
+rule make_options:
+    input:
+        options_name="options.yml"
+    output:
+        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml'
+    threads: 1
+    resources: mem_mb=1000
+    script: "scripts/make_options.py"
