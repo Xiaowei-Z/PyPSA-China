@@ -82,3 +82,14 @@ rule build_temp_profiles:
     threads: 8
     resources: mem_mb=30000
     script: "scripts/build_temp_profiles.py"
+
+rule build_energy_totals:
+    input:
+        infile1="data/population/population.h5",
+        infile2="data/population/population_gridcell_map.h5"
+    output:
+        outfile1="data/energy_totals2020.h5",
+    	outfile2="data/co2_totals.h5",
+    threads: 1
+    resources: mem_mb=10000
+    script: "scripts/build_energy_totals.py"
