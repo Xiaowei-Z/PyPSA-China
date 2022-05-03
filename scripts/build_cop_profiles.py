@@ -15,7 +15,7 @@ def build_cop_profiles():
         pop_map = store['population_gridcell_map']
 
     #this one includes soil temperature
-    cutout = atlite.Cutout('China-2016')
+    cutout = atlite.Cutout('cutouts/China-2020.nc')
 
     #list of grid cells
     grid_cells = cutout.grid_cells()
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.input = Dict(infile="data/population_gridcell_map.h5")
-        snakemake.output = Dict(outfile='data/heating/cop.h5')
+        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
+        snakemake.output = Dict(outfile="data/heating/cop.h5")
 
     build_cop_profiles()
