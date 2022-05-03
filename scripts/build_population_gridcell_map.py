@@ -44,7 +44,7 @@ def build_population_map():
 
     pro_poly.reset_index(inplace=True)
 
-    cutout = atlite.Cutout(snakemake.input.cutout)
+    cutout = atlite.Cutout('cutouts/China-2020')
 
     c_grid_points = cutout.grid_coordinates()
 
@@ -98,8 +98,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.input = Dict(infile="data/population/population.h5"，
-                               cutout ="data/cutout/China-2020.nc")
+        snakemake.input = Dict(infile="data/population/population.h5")
         snakemake.output = Dict(outfile='data/population/population_gridcell_map.h5')
 
     build_population_map()
