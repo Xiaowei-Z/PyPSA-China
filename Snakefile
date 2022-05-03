@@ -51,6 +51,7 @@ rule build_population_gridcell_map:
 rule build_solar_thermal_profiles:
     input:
         infile="data/population/population_gridcell_map.h5"
+        cutout="cutouts/China-2020.nc"
     output:
         outfile="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle'])
     threads: 8
