@@ -44,7 +44,7 @@ def build_population_map():
 
     pro_poly.reset_index(inplace=True)
 
-    cutout = atlite.Cutout('cutouts/China-2020')
+    cutout = atlite.Cutout('cutouts/China-2020.nc')
 
     c_grid_points = cutout.grid_coordinates()
 
