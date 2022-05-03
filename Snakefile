@@ -64,3 +64,12 @@ rule build_heat_demand_profiles:
     threads: 8
     resources: mem_mb=30000
     script: "scripts/build_heat_demand_profiles.py"
+
+rule build_cop_profiles:
+    input:
+        infile="data/population/population_gridcell_map.h5"
+    output:
+        outfile="data/heating/cop.h5"
+    threads: 8
+    resources: mem_mb=30000
+    script: "scripts/build_cop_profiles.py"
