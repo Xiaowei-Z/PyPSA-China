@@ -118,3 +118,15 @@ rule prepare_networks:
     threads: 1
     resources: mem_mb=10000
     script: "scripts/prepare_network.py"
+ 
+rule solve_networks:
+    input:
+        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml',
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc',
+        co2_totals_name="data/co2_totals.h5",
+        temp="data/heating/temp.h5"
+    output:
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc'
+    threads: 4
+    resources: mem_mb=35000
+    script: "scripts/solve_network.py"
