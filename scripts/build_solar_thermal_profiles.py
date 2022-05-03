@@ -18,7 +18,7 @@ def build_solar_thermal_profiles():
         pop_map = store['population_gridcell_map']
 
 
-    cutout = atlite.Cutout('snakemake.input.cutout')
+    cutout = atlite.Cutout('cutouts/China-2020.nc')
 
 
     #list of grid cells
@@ -41,8 +41,7 @@ if __name__ == "__main__":
         snakemake = Dict()
         with open('config.yaml') as f:
             snakemake.config = yaml.load(f)
-        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5",
-                               cutout="cutouts/China-2020.nc")
+        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
         snakemake.output = Dict(outfile="data/heating/solar_thermal-{angle}.h5".format(angle=snakemake.config['solar_thermal_angle']))
 
     build_solar_thermal_profiles()
