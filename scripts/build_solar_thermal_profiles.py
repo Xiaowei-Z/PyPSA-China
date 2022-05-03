@@ -1,6 +1,3 @@
-
-from vresutils import shapes as vshapes, mapping as vmapping, transfer as vtransfer, load as vload
-
 from vresutils import Dict
 import yaml
 
