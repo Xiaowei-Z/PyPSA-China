@@ -47,3 +47,12 @@ rule build_population_gridcell_map:
     threads: 1
     resources: mem_mb=35000
     script: "scripts/build_population_gridcell_map.py"
+
+rule build_solar_thermal_profiles:
+    input:
+        infile="data/population/population_gridcell_map.h5"
+    output:
+        outfile="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle'])
+    threads: 8
+    resources: mem_mb=30000
+    script: "scripts/build_solar_thermal_profiles.py"
