@@ -102,3 +102,19 @@ rule make_options:
     threads: 1
     resources: mem_mb=1000
     script: "scripts/make_options.py"
+
+rule prepare_networks:
+    input:
+        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml',
+        population_name="data/population/population.h5",
+        solar_thermal_name="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle']),
+    	heat_demand_name="data/heating/daily_heat_demand.h5",
+    	cop_name="data/heating/cop.h5",
+        energy_totals_name="data/energy_totals.h5",
+        co2_totals_name="data/co2_totals.h5",
+        temp="data/heating/temp.h5"
+    output:
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc'
+    threads: 1
+    resources: mem_mb=10000
+    script: "scripts/prepare_network.py"
