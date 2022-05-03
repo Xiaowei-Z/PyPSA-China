@@ -92,7 +92,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.input = Dict(infile1="data/population.h5", infile2='data/population_gridcell_map.h5')
+        snakemake.input = Dict(infile1="data/population/population.h5", infile2='data/population/population_gridcell_map.h5')
         snakemake.output = Dict(outfile1="data/energy_totals.h5", outfile2="data/co2_totals.h5")
 
     space_heating_per_hdd, hot_water_per_day = build_energy_totals()
