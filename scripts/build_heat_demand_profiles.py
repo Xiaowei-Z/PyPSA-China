@@ -15,7 +15,7 @@ def build_heat_demand_profiles():
         pop_map = store['population_gridcell_map']
 
 
-    cutout = atlite.Cutout('China-2016')
+    cutout = atlite.Cutout('cutouts/China-2020.nc')
 
 
     #list of grid cells
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.input = Dict(infile="data/population_gridcell_map.h5")
-        snakemake.output = Dict(outfile='data/heating/daily_heat_demand.h5')
+        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
+        snakemake.output = Dict(outfile="data/heating/daily_heat_demand.h5")
 
     df = build_heat_demand_profiles()
