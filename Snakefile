@@ -40,8 +40,7 @@ if config['enable'].get('build_cutout', False):
    
 rule build_population_gridcell_map:
     input:
-        infile="data/population/population.h5",
-        cutout="data/cutout/China-2020.nc"
+        infile="data/population/population.h5"
     output:
         outfile="data/population/population_gridcell_map.h5"
     threads: 1
@@ -51,7 +50,6 @@ rule build_population_gridcell_map:
 rule build_solar_thermal_profiles:
     input:
         infile="data/population/population_gridcell_map.h5"
-        cutout="cutouts/China-2020.nc"
     output:
         outfile="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle'])
     threads: 8
