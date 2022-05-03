@@ -1,6 +1,3 @@
-
-from vresutils import shapes as vshapes, mapping as vmapping, transfer as vtransfer, load as vload
-
 import atlite
 
 import pandas as pd
@@ -15,7 +12,7 @@ def build_temp_profiles():
         pop_map = store['population_gridcell_map']
 
     #this one includes soil temperature
-    cutout = atlite.Cutout('China-2016')
+    cutout = atlite.Cutout('cutouts/China-2020.nc')
 
     #list of grid cells
     grid_cells = cutout.grid_cells()
@@ -39,7 +36,7 @@ if __name__ == "__main__":
         with open('config.yaml') as f:
             snakemake.config = yaml.load(f)
         snakemake.input = Dict()
-        snakemake.input.infile = "data/population_gridcell_map.h5"
+        snakemake.input.infile = "data/population/population_gridcell_map.h5"
         snakemake.output = Dict()
         snakemake.output.outfile = "data/heating/temp.h5"
     build_temp_profiles()
