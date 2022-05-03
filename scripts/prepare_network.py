@@ -1014,17 +1014,16 @@ if __name__ == '__main__':
             config = yaml.load(f)
         snakemake = Dict()
         snakemake.input = Dict(options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}.yml',
-            population_name='data/population.h5',
-            solar_thermal_name='data/heating/solar_thermal-{angle}.h5'.format(angle=config['solar_thermal_angle']),
-            heat_demand_name='data/heating/daily_heat_demand.h5',
-            cop_name='data/heating/cop.h5',
-            energy_totals_name='data/energy_totals.h5',
-            co2_totals_name='data/co2_totals.h5',
-            temp='data/heating/temp.h5',)
+            population_name="data/population/population.h5",
+            solar_thermal_name="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle']),
+            heat_demand_name="data/heating/daily_heat_demand.h5",
+            cop_name="data/heating/cop.h5",
+            energy_totals_name="data/energy_totals.h5",
+            co2_totals_name="data/co2_totals.h5",
+            temp="data/heating/temp.h5")
         snakemake.output = Dict(
-            network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}.nc',)
-            # heat_demand_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}_heat_demand.h5')
-
+            network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}.nc')
+          
     options = yaml.load(open(snakemake.input.options_name,"r"))
 
     population = pd.read_hdf(snakemake.input.population_name)
