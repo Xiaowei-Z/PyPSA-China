@@ -14,6 +14,7 @@ rule build_p_nom:
         offwind_capacity="data/p_nom/offwind_p_nom.h5"
         onwind_capacity="data/p_nom/onwind_p_nom.h5"
         solar_capacity="data/p_nom/solar_p_nom.h5"
+        nuclear_capacity="data/p_nom/nuclear_p_nom.h5"
     threads:1
     resources: mem_mb=500
     script: "scripts/build_p_nom.py"
