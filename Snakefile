@@ -1,8 +1,8 @@
-# SPDX-FileCopyrightText: : 2012 The PyPSA-China Authors
+# SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: MIT
 
-# Build capacities in China
+# Pathway to reduce CO2 emissions from 2020 to 2060
 
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
 
