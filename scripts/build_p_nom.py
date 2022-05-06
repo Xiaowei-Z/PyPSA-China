@@ -19,6 +19,7 @@ def build_p_nom():
     offwind_capacity = csv_to_df(csv_name="data/p_nom/offwind_p_nom.csv")    
     onwind_capacity = csv_to_df(csv_name="data/p_nom/onwind_p_nom.csv")   
     solar_capacity = csv_to_df(csv_name="data/p_nom/solar_p_nom.csv")
+    nuclear_capacity = csv_to_df(csv_name="data/p_nom/nuclear_p_nom.csv")
 
     coal_capacity.name = "coal_capacity"  
     CHP_capacity.name = "CHP_capacity"    
@@ -26,6 +27,7 @@ def build_p_nom():
     offwind_capacity.name = "offwind_capacity"   
     onwind_capacity.name = "onwind_capacity"   
     solar_capacity.name = "solar_capacity"
+    nuclear_capacity.name = "nuclear_capacity"
 
     coal_capacity.to_hdf(snakemake.output.coal_capacity, key=coal_capacity.name)    
     CHP_capacity.to_hdf(snakemake.output.CHP_capacity, key=CHP_capacity.name)   
@@ -33,6 +35,7 @@ def build_p_nom():
     offwind_capacity.to_hdf(snakemake.output.offwind_capacity, key=offwind_capacity.name)
     onwind_capacity.to_hdf(snakemake.output.onwind_capacity, key=onwind_capacity.name)
     solar_capacity.to_hdf(snakemake.output.solar_capacity, key=solar_capacity.name)
+    nuclear_capacity.to_hdf(snakemake.output.nuclear_capacity, key=nuclear_capacity.name)
     
 if __name__ == "__main__":
 
@@ -45,6 +48,7 @@ if __name__ == "__main__":
                                 OCGT_capacity="data/p_nom/OCGT_p_nom.h5",
                                 offwind_capacity="data/p_nom/offwind_p_nom.h5",
                                 onwind_capacity="data/p_nom/onwind_p_nom.h5",
-                                solar_capacity="data/p_nom/solar_p_nom.h5")
+                                solar_capacity="data/p_nom/solar_p_nom.h5",
+                                nuclear_capacity="data/p_nom/nuclear_p_nom.h5")
         
     build_p_nom()
