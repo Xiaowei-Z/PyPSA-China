@@ -298,7 +298,7 @@ def prepare_network(options):
     network.madd("Load", nodes, bus=nodes, p_set=load[nodes])
 
     #add renewables
-    Onwind_p_nom = pd.read_hdf('data/p_nom/Onwind_p_nom.h5')
+    Onwind_p_nom = pd.read_hdf('data/p_nom/onwind_p_nom.h5')
     network.madd("Generator",
                  nodes,
                  suffix=' onwind',
@@ -312,7 +312,7 @@ def prepare_network(options):
                  p_max_pu=p_max_pu['onwind'][nodes])
 
     offwind_nodes = p_nom_max['offwind'][p_nom_max['offwind']!=0].index
-    Offwind_p_nom = pd.read_hdf('data/p_nom/Offwind_p_nom.h5')
+    Offwind_p_nom = pd.read_hdf('data/p_nom/offwind_p_nom.h5')
     network.madd("Generator",
                  offwind_nodes,
                  suffix=' offwind',
@@ -325,7 +325,7 @@ def prepare_network(options):
                  p_max_pu=p_max_pu['offwind'][offwind_nodes],
                  marginal_cost=costs.at['offwind','VOM'])
     
-    Solar_p_nom = pd.read_hdf('data/p_nom/Solar_p_nom.h5')
+    Solar_p_nom = pd.read_hdf('data/p_nom/solar_p_nom.h5')
     
     network.madd("Generator",
                  nodes,
