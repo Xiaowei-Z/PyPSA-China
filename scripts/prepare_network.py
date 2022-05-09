@@ -117,7 +117,7 @@ def transport_degree_factor(temperature,deadband_lower=15,deadband_upper=20,
 def prepare_costs(Nyears, options):
 
     #set all asset costs and other parameters
-    costs = pd.read_csv("data/costs/costs.csv",index_col=list(range(3))).sort_index()
+    costs = pd.read_csv("data/costs.csv",index_col=list(range(3))).sort_index()
 
     #correct units to MW and EUR
     costs.loc[costs.unit.str.contains("/kW"),"value"]*=1e3
