@@ -216,7 +216,7 @@ def prepare_network(options):
 
     #load graph
     nodes = pd.Index(pro_names)
-    edges = pd.read_csv("data/graph/edges.txt", sep=",", header=None)
+    edges = pd.read_csv("data/edges.txt", sep=",", header=None)
 
     #set times
     network.set_snapshots(pd.date_range(options['tmin'],options['tmax'],freq=options['freq']))
@@ -290,7 +290,7 @@ def prepare_network(options):
 
 
     #load demand data
-    with pd.HDFStore(f'data/load/load_{options["load_year"]}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
+    with pd.HDFStore(f'data/load/load_{options["load_year"]}_weatheryears_2020_2060_TWh.h5', mode='r') as store:
         load = 1e6 * store['load'].loc[network.snapshots]
 
     load.columns = pro_names
