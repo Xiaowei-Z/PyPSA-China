@@ -28,9 +28,14 @@ def build_heat_demand_profiles():
                             a=1.,
                             constant=0.,
                             hour_shift=8.)
+    
+    Hd_2020 = hd.T.to_pandas().divide(pop_map.sum())
+    Hd_2020.loc['2016-04-01':'2016-09-30'] = 0
+    Hd_2020.loc[:,['Anhui','Sichuan','Yunnan','Chongqing','Guizhou','Guangxi','Hainan','Hubei','Hunan','Guangdong','Jiangxi','Shanghai','Zhejiang','Fujian']]=0
+    
 
     with pd.HDFStore(snakemake.output.outfile, mode='w', complevel=4) as store:
-        store['heat_demand_profiles'] = hd.T.to_pandas().divide(pop_map.sum())
+        store['heat_demand_profiles'] = Hd_2020
 
 
 if __name__ == "__main__":
