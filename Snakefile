@@ -4,6 +4,8 @@
 
 # Pathway to reduce CO2 emissions from 2020 to 2060
 
+configfile: "config.yaml"
+
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
 
 rule build_p_nom:
