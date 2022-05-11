@@ -8,11 +8,11 @@ logging:
   format: '%(levelname)s:%(name)s:%(message)s'
   
 enable:
-  build_cutout: false
+  build_cutout: ture
   
 atlite:
   nprocesses: 4
-  cutouts:
+  cutout:
    China-2020:
      module: era5
      x: [73, 136]
