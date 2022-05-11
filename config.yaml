@@ -12,7 +12,7 @@ enable:
   
 atlite:
   nprocesses: 4
-  cutout:
+  cutouts:
    China-2020:
      module: era5
      x: [73, 136]
