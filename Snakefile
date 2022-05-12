@@ -107,6 +107,28 @@ rule build_energy_totals:
     resources: mem_mb=10000
     script: "scripts/build_energy_totals.py"
         
+rule build_renewable_profiles:
+    input:
+        base_network="networks/base.nc",
+        corine="data/bundle/corine/g250_clc06_V18_5.tif",
+        natura="resources/natura.tiff",
+        gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
+                         if "max_depth" in config["renewable"][w.technology].keys()
+                         else []),
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
+        regions=lambda w: ("resources/regions_onshore.geojson"
+                                   if w.technology in ('onwind', 'solar')
+                                   else "resources/regions_offshore.geojson"),
+        cutout= "cutouts/China-2020.nc··"
+    output: profile="resources/profile_{technology}.nc",
+    log: "logs/build_renewable_profile_{technology}.log"
+    benchmark: "benchmarks/build_renewable_profiles_{technology}"
+    threads: ATLITE_NPROCESSES
+    resources: mem_mb=ATLITE_NPROCESSES * 5000
+    wildcard_constraints: technology="(?!hydro).*" # Any technology other than hydro
+    script: "scripts/build_renewable_profiles.py"
+        
 rule make_options:
     input:
         options_name="options.yml"
