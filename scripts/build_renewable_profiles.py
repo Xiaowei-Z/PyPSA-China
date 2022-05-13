@@ -15,10 +15,19 @@ from shapely import ops,affinity
 
 from functions import pro_names
 
+def rotate_transform(bounds, res):
+    left, bottom = [(b // res) * res for b in bounds[:2]]
+    right, top = [(b // res + 1) * res for b in bounds[2:]]
+    return rio.Affine(res, 0, left, 0, -res, top)
+
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('build_renewable_profiles')
     configure_logging(snakemake)
+    
+    #add raster
+    Build_up_raster = snakemake.input['Build_up_raster'])
+    cutout = atlite.Cutout(snakemake.input['cutout'])
     
     
