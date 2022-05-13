@@ -27,7 +27,11 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     
     #add raster
-    Build_up_raster = snakemake.input['Build_up_raster'])
+    Build_up = snakemake.input['Build_up_raster'])
+    Grass = snakemake.input['Grass_raster'])
+    Bare= snakemake.input['Bare_raster'])
+    Shrubland = snakemake.input['Shrubland_raster'])
+    
     cutout = atlite.Cutout(snakemake.input['cutout'])
     
     
