@@ -107,16 +107,32 @@ rule build_energy_totals:
     resources: mem_mb=10000
     script: "scripts/build_energy_totals.py"
         
+ if config['enable'].get('retrieve_raster', True):
+    rule retrieve_build_up_raster:
+        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_BuiltUp-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        output: "data/resources/Build_up.tif"
+        run: move(input[0], output[0])
+    rule retrieve_Grass_raster:
+        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Grass-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        output: "data/resources/Grass.tif"
+        run: move(input[0], output[0])
+    rule retrieve_Bare_raster:
+        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Bare-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        output: "data/resources/Bare.tif"
+        run: move(input[0], output[0])
+    rule retrieve_Shrubland_raster:
+        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Shrub-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        output: "data/resources/Shrubland.tif"
+        run: move(input[0], output[0])
+                                    
 rule build_renewable_profiles:
     input:
-        base_network="networks/base.nc",
-        corine="data/bundle/corine/g250_clc06_V18_5.tif",
-        natura="resources/natura.tiff",
+        Build_up_raster="data/resources/Build_up.tif"
         gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
                          if "max_depth" in config["renewable"][w.technology].keys()
                          else []),
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
+        country_shapes='data/resources/country_shapes.geojson',
+        offshore_shapes='data/resources/offshore_shapes.geojson',
         regions=lambda w: ("resources/regions_onshore.geojson"
                                    if w.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),
