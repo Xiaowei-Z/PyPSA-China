@@ -32,6 +32,16 @@ if __name__ == "__main__":
     Bare= snakemake.input['Bare_raster'])
     Shrubland = snakemake.input['Shrubland_raster'])
     
+    excluder_build_up = ExclusionContainer(crs=3035,res=500)
+    excluder_build_up.add_raster(Build_up, invert=True, crs=4326)
+    
+    excluder = ExclusionContainer(crs=3035,res=500)
+    excluder.add_raster(Grass, invert=True, crs=4326)
+    excluder.add_raster(Bare, invert=True, crs=4326)
+    excluder.add_raster(Shrubland, invert=True, crs=4326)
+    
+    
+    
     cutout = atlite.Cutout(snakemake.input['cutout'])
     
     
