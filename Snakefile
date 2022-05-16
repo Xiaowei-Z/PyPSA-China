@@ -38,6 +38,13 @@ rule build_population:
     resources: mem_mb=1000
     script: "scripts/build_population.py"
         
+ if config['enable'].get('retrieve_cutout', True):  
+    rule retrieve_cutout:
+        input: HTTP.remote(zenodo.org/record/6510859/files/China-2020.nc, keep_local=True, static=True)
+        output: "cutouts/{cutout}.nc"
+        run: move(input[0], output[0])
+        
+        
 if config['enable'].get('build_cutout', False):
     rule build_cutout:
         input: 
@@ -50,7 +57,6 @@ if config['enable'].get('build_cutout', False):
         resources: mem_mb=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
     
-   
 rule build_population_gridcell_map:
     input:
         infile="data/population/population.h5"
@@ -109,41 +115,36 @@ rule build_energy_totals:
         
  if config['enable'].get('retrieve_raster', True):
     rule retrieve_build_up_raster:
-        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_BuiltUp-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        input: HTTP.remote(zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_BuiltUp-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
         output: "data/resources/Build_up.tif"
         run: move(input[0], output[0])
     rule retrieve_Grass_raster:
-        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Grass-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        input: HTTP.remote(zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Grass-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
         output: "data/resources/Grass.tif"
         run: move(input[0], output[0])
     rule retrieve_Bare_raster:
-        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Bare-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        input: HTTP.remote(zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Bare-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
         output: "data/resources/Bare.tif"
         run: move(input[0], output[0])
     rule retrieve_Shrubland_raster:
-        input: HTTP.remote("zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Shrub-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
+        input: HTTP.remote(zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_Shrub-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
         output: "data/resources/Shrubland.tif"
         run: move(input[0], output[0])
                                     
-rule build_renewable_profiles:
+rule build_renewable_potentail:
     input:
-        Build_up_raster="data/resources/Build_up.tif"
-        gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
-                         if "max_depth" in config["renewable"][w.technology].keys()
-                         else []),
+        Build_up_raster="data/resources/Build_up.tif",
+        Grass_raster="data/resources/Grass.tif",
+        Bare_raster="data/resources/Bare.tif",
+        Shubland_raster="data/resources/Shrubland.tif",
         country_shapes='data/resources/country_shapes.geojson',
         offshore_shapes='data/resources/offshore_shapes.geojson',
-        regions=lambda w: ("resources/regions_onshore.geojson"
-                                   if w.technology in ('onwind', 'solar')
-                                   else "resources/regions_offshore.geojson"),
-        cutout= "cutouts/China-2020.nc··"
-    output: profile="resources/profile_{technology}.nc",
-    log: "logs/build_renewable_profile_{technology}.log"
-    benchmark: "benchmarks/build_renewable_profiles_{technology}"
+        cutout= "cutouts/China-2020.nc"
+    output: profile="resources/renewable_potential.nc",
+    log: "logs/build_renewable_potential.log"
     threads: ATLITE_NPROCESSES
     resources: mem_mb=ATLITE_NPROCESSES * 5000
-    wildcard_constraints: technology="(?!hydro).*" # Any technology other than hydro
-    script: "scripts/build_renewable_profiles.py"
+    script: "scripts/build_renewable_potential.py"
         
 rule make_options:
     input:
