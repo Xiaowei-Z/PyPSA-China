@@ -23,8 +23,11 @@ def rotate_transform(bounds, res):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('build_renewable_profiles')
+        snakemake = mock_snakemake('build_renewable_potential')
     configure_logging(snakemake)
+    
+    cutout = atlite.Cutout(snakemake.input['cutout'])
+    cutout.prepare()
     
     #add raster
     Build_up = snakemake.input['Build_up_raster'])
@@ -40,8 +43,15 @@ if __name__ == "__main__":
     excluder.add_raster(Bare, invert=True, crs=4326)
     excluder.add_raster(Shrubland, invert=True, crs=4326)
     
+    country_shapes=snakemake.input['country_shapes']
+    
+    country_matrix = cutout.availabilitymatrix(country_shapes, excluder)
+    buildup_matrix = cutout.availabilitymatrix(country_shapes, excluder_build_up)
     
     
-    cutout = atlite.Cutout(snakemake.input['cutout'])
+    
+    
+    
+    
     
     
