@@ -15,11 +15,6 @@ from shapely import ops,affinity
 
 from functions import pro_names
 
-def rotate_transform(bounds, res):
-    left, bottom = [(b // res) * res for b in bounds[:2]]
-    right, top = [(b // res + 1) * res for b in bounds[2:]]
-    return rio.Affine(res, 0, left, 0, -res, top)
-
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
@@ -47,6 +42,7 @@ if __name__ == "__main__":
     
     country_matrix = cutout.availabilitymatrix(country_shapes, excluder)
     buildup_matrix = cutout.availabilitymatrix(country_shapes, excluder_build_up)
+    
     
     
     
