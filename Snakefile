@@ -38,7 +38,7 @@ rule build_population:
     resources: mem_mb=1000
     script: "scripts/build_population.py"
         
- if config['enable'].get('retrieve_cutout', True):  
+if config['enable'].get('retrieve_cutout', True):  
     rule retrieve_cutout:
         input: HTTP.remote(zenodo.org/record/6510859/files/China-2020.nc, keep_local=True, static=True)
         output: "cutouts/{cutout}.nc"
