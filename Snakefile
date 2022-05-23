@@ -113,7 +113,7 @@ rule build_energy_totals:
     resources: mem_mb=10000
     script: "scripts/build_energy_totals.py"
         
- if config['enable'].get('retrieve_raster', True):
+if config['enable'].get('retrieve_raster', True):
     rule retrieve_build_up_raster:
         input: HTTP.remote(zenodo.org/record/3939050/files/PROBAV_LC100_global_v3.0.1_2019-nrt_BuiltUp-CoverFraction-layer_EPSG-4326.tif, keep_local=True, static=True)
         output: "data/resources/Build_up.tif"
