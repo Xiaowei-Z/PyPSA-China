@@ -41,7 +41,7 @@ def configure_logging(snakemake, skip_handlers=False):
             })
     logging.basicConfig(**kwargs)
     
- def mock_snakemake(rulename, **wildcards):
+def mock_snakemake(rulename, **wildcards):
     """
     This function is expected to be executed from the 'scripts'-directory of '
     the snakemake project. It returns a snakemake.script.Snakemake object,
