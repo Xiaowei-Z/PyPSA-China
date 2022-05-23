@@ -25,10 +25,10 @@ if __name__ == "__main__":
     cutout.prepare()
     
     #add raster
-    Build_up = snakemake.input['Build_up_raster'])
-    Grass = snakemake.input['Grass_raster'])
-    Bare= snakemake.input['Bare_raster'])
-    Shrubland = snakemake.input['Shrubland_raster'])
+    Build_up = snakemake.input['Build_up_raster']
+    Grass = snakemake.input['Grass_raster']
+    Bare= snakemake.input['Bare_raster']
+    Shrubland = snakemake.input['Shrubland_raster']
     
     excluder_build_up = ExclusionContainer(crs=3035,res=500)
     excluder_build_up.add_raster(Build_up, invert=True, crs=4326)
