@@ -6,7 +6,7 @@ input_name = snakemake.input.options_name
 output_name = snakemake.output.options_name
 
 
-options = yaml.load(open(input_name,'r'))
+options = yaml.load(open(input_name,'r'),Loader=yaml.Loader)
 
 
 if snakemake.wildcards.line_limits == "opt":
