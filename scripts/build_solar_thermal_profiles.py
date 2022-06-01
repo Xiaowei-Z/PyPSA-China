@@ -27,7 +27,7 @@ def build_solar_thermal_profiles():
 
     st = cutout.solar_thermal(orientation={'slope': float(snakemake.config['solar_thermal_angle']), 'azimuth': 0.},matrix=pop_matrix,index=index)
 
-    with pd.HDFStore(snakemake.output.outfile, mode='w', complevel=4) as store:
+    with pd.HDFStore(snakemake.output.profile_solar_thermal, mode='w', complevel=4) as store:
         store['solar_thermal_profiles'] = st.T.to_pandas().divide(pop_map.sum())
 
 
@@ -39,6 +39,6 @@ if __name__ == "__main__":
         with open('config.yaml') as f:
             snakemake.config = yaml.load(f)
         snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
-        snakemake.output = Dict(outfile="data/heating/solar_thermal-{angle}.h5".format(angle=snakemake.config['solar_thermal_angle']))
+        snakemake.output = Dict(profile_solar_thermal="data/heating/solar_thermal-{angle}.h5".format(angle=snakemake.config['solar_thermal_angle']))
 
     build_solar_thermal_profiles()
