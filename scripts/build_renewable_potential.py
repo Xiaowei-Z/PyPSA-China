@@ -235,30 +235,3 @@ if __name__ == "__main__":
             offwind_ds['profile'] = offwind_ds['profile'].where(offwind_ds['profile'] >= min_p_max_pu, 0)
 
         offwind_ds.to_netcdf(snakemake.output.offwind_profile)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-    
-    
-    
-    
-    
-    
-    
