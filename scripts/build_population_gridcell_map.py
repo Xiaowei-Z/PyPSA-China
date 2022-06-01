@@ -66,7 +66,7 @@ def build_population_map():
 
     #### Province masks merged with population density
 
-    merged = gpd.tools.sjoin(pointInPolys, pop_ww, how='inner')
+    merged = gpd.tools.sjoin_nearest(pointInPolys, pop_ww, how='inner')
 
 
     #### save in the right format
@@ -87,7 +87,7 @@ def build_population_map():
     points_in_provinces *= pop_province_count
 
 
-    with pd.HDFStore(snakemake.output.outfile, mode='w', complevel=4) as store:
+    with pd.HDFStore(snakemake.output.population_map, mode='w', complevel=4) as store:
         store['population_gridcell_map'] = points_in_provinces
 
 
@@ -99,6 +99,6 @@ if __name__ == "__main__":
         from vresutils import Dict
         snakemake = Dict()
         snakemake.input = Dict(infile="data/population/population.h5")
-        snakemake.output = Dict(outfile='data/population/population_gridcell_map.h5')
+        snakemake.output = Dict(population_map='data/population/population_gridcell_map.h5')
 
     build_population_map()
