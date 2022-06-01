@@ -49,7 +49,7 @@ def build_cop_profiles():
     cop_soil = gshp_cop(delta_soil_T)
 
 
-    with pd.HDFStore(snakemake.output.outfile, mode='w', complevel=4) as store:
+    with pd.HDFStore(snakemake.output.cop, mode='w', complevel=4) as store:
         store['ashp_cop_profiles'] = cop
         store['gshp_cop_profiles'] = cop_soil
 
@@ -61,6 +61,6 @@ if __name__ == "__main__":
         from vresutils import Dict
         snakemake = Dict()
         snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
-        snakemake.output = Dict(outfile="data/heating/cop.h5")
+        snakemake.output = Dict(cop="data/heating/cop.h5")
 
     build_cop_profiles()
