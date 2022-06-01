@@ -14,17 +14,14 @@ def build_temp_profiles():
     #this one includes soil temperature
     cutout = atlite.Cutout('cutouts/China-2020.nc')
 
-    #list of grid cells
-    grid_cells = cutout.grid_cells()
-
     pop_matrix = sp.sparse.csr_matrix(pop_map.T)
     index = pop_map.columns
     index.name = "provinces"
 
     temp = cutout.temperature(matrix=pop_matrix,index=index)
 
-    with pd.HDFStore(snakemake.output.outfile, mode='w', complevel=4) as store:
-        store['temperature'] = temp.T.to_pandas().divide(pop_map.sum())
+    with pd.HDFStore(snakemake.output.temp, mode='w', complevel=4) as store:
+        store['temperature'] = temp.to_pandas().divide(pop_map.sum())
 
 
 if __name__ == "__main__":
@@ -38,5 +35,5 @@ if __name__ == "__main__":
         snakemake.input = Dict()
         snakemake.input.infile = "data/population/population_gridcell_map.h5"
         snakemake.output = Dict()
-        snakemake.output.outfile = "data/heating/temp.h5"
+        snakemake.output.temp = "data/heating/temp.h5"
     build_temp_profiles()
