@@ -15,7 +15,7 @@ def build_population():
 
     population.name = "population"
 
-    population.to_hdf(snakemake.output.outfile, key=population.name)
+    population.to_hdf(snakemake.output.population, key=population.name)
 
 
 if __name__ == "__main__":
@@ -24,6 +24,6 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from vresutils import Dict
         snakemake = Dict()
-        snakemake.output = Dict(outfile="data/population/population.h5")
+        snakemake.output = Dict(population="data/population/population.h5")
 
     build_population()
