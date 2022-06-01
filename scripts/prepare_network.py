@@ -25,6 +25,7 @@ import pyproj
 from shapely.ops import transform
 import warnings
 import helper
+import xarray as xr
 
 from pyomo.environ import Constraint
 
@@ -195,22 +196,13 @@ def prepare_data(network):
     if options['split_onwind']:
         variable_generator_kinds.update({'onwind':'onwind_split'})
 
-    p_max_pu_folder = 'data/p_max_pu/'
-    #dict of dfs with index datetime and col node names
-    p_max_pu = {kind: get_p_max_pu(p_max_pu_folder + kname + '.npy', network.snapshots) for kind, kname in variable_generator_kinds.items()}
-
-    p_nom_max_folder = 'data/renewable_potential/'
-    #dict of series with index node names
-    p_nom_max = {kind: pd.read_pickle(p_nom_max_folder + kname + '.pickle') for kind, kname in variable_generator_kinds.items()}
-
-
-    return heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals, p_max_pu, p_nom_max
+    return heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals
 
 
 def prepare_network(options):
 
     #Build the Network object, which stores all other objects
-    network = helper.Network()
+    network = pypsa.Network()
 
     network.options=options
 
@@ -227,7 +219,11 @@ def prepare_network(options):
 
     costs = prepare_costs(Nyears, network.options)
 
-    heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals, p_max_pu, p_nom_max = prepare_data(network)
+    heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals = prepare_data(network)
+
+    ds_solar = xr.open_dataset(snakemake.input.profile_solar)
+    ds_onwind = xr.open_dataset(snakemake.input.profile_onwind)
+    ds_offwind = xr.open_dataset(snakemake.input.profile_offwind)
 
     # network.heat_demand = heat_demand
     # heat_demand.to_hdf(snakemake.output.heat_demand_name, key='heat_demand', mode='w')
@@ -290,7 +286,7 @@ def prepare_network(options):
 
 
     #load demand data
-    with pd.HDFStore(f'data/load/load_{options["load_year"]}_weatheryears_2020_2060_TWh.h5', mode='r') as store:
+    with pd.HDFStore(f'data/load/load_{options["load_year"]}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
         load = 1e6 * store['load'].loc[network.snapshots]
 
     load.columns = pro_names
@@ -306,12 +302,12 @@ def prepare_network(options):
                  p_nom_extendable=True,
                  p_nom=Onwind_p_nom,
                  carrier="onwind",
-                 p_nom_max=p_nom_max['onwind'][nodes],
+                 p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['onwind','fixed'],
                  marginal_cost=costs.at['onwind','VOM'],
-                 p_max_pu=p_max_pu['onwind'][nodes])
+                 p_max_pu=ds_onwind['profile'].transpose('time','bus').to_pandas())
 
-    offwind_nodes = p_nom_max['offwind'][p_nom_max['offwind']!=0].index
+    offwind_nodes = ds_offwind['bus'].to_pandas().index
     Offwind_p_nom = pd.read_hdf('data/p_nom/offwind_p_nom.h5')
     network.madd("Generator",
                  offwind_nodes,
@@ -320,9 +316,9 @@ def prepare_network(options):
                  p_nom=Offwind_p_nom,
                  bus=offwind_nodes,
                  carrier="offwind",
-                 p_nom_max=p_nom_max['offwind'][offwind_nodes],
+                 p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['offwind','fixed'],
-                 p_max_pu=p_max_pu['offwind'][offwind_nodes],
+                 p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
                  marginal_cost=costs.at['offwind','VOM'])
     
     Solar_p_nom = pd.read_hdf('data/p_nom/solar_p_nom.h5')
@@ -334,9 +330,9 @@ def prepare_network(options):
                  p_nom=Solar_p_nom,
                  bus=nodes,
                  carrier="solar",
-                 p_nom_max=p_nom_max['solar'][nodes],
+                 p_nom_max=ds_solar['p_nom_max'].to_pandas(),
                  capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
-                 p_max_pu=p_max_pu['solar'][nodes].clip(1.e-4),
+                 p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
                  marginal_cost=costs.at['solar','VOM'])
 
     #add conventionals
@@ -988,7 +984,7 @@ def prepare_network(options):
         lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
                                       [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges.values])
 
-        if options['line_volume_limit_factor'] is not None:
+        if options['line_volume_limit_max'] is not None:
             cc = Nyears*0.01 # Set line costs to ~zero because we already restrict the line volume
         else:
             cc = (options['line_cost_factor']*lengths*[HVAC_cost_curve(l) for l in lengths]) * 1.5 * 1.02 * Nyears*annuity(40.,options['discountrate'])
@@ -1011,7 +1007,7 @@ if __name__ == '__main__':
     if 'snakemake' not in globals():
         from vresutils import Dict
         with open('config.yaml') as f:
-            config = yaml.load(f)
+            config = yaml.load(f,Loader=yaml.Loader)
         snakemake = Dict()
         snakemake.input = Dict(options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}.yml',
             population_name="data/population/population.h5",
@@ -1020,11 +1016,14 @@ if __name__ == '__main__':
             cop_name="data/heating/cop.h5",
             energy_totals_name="data/energy_totals.h5",
             co2_totals_name="data/co2_totals.h5",
-            temp="data/heating/temp.h5")
+            temp="data/heating/temp.h5",
+            **{f"profile_{tech}": f"resources/profile_{tech}.nc"
+                for tech in config['renewable']}
+                               )
         snakemake.output = Dict(
             network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}.nc')
           
-    options = yaml.load(open(snakemake.input.options_name,"r"))
+    options = yaml.load(open(snakemake.input.options_name,"r"),Loader=yaml.Loader)
 
     population = pd.read_hdf(snakemake.input.population_name)
 
