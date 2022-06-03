@@ -1,10 +1,13 @@
+# -*- coding: utf-8 -*-
 
 # SPDX-FileCopyrightText: : 2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+
 
 def configure_logging(snakemake, skip_handlers=False):
     """
@@ -24,23 +27,29 @@ def configure_logging(snakemake, skip_handlers=False):
 
     import logging
 
-    kwargs = snakemake.config.get('logging', dict())
+    kwargs = snakemake.config.get("logging", dict())
     kwargs.setdefault("level", "INFO")
 
     if skip_handlers is False:
-        fallback_path = Path(__file__).parent.joinpath('..', 'logs', f"{snakemake.rule}.log")
-        logfile = snakemake.log.get('python', snakemake.log[0] if snakemake.log
-                                    else fallback_path)
+        fallback_path = Path(__file__).parent.joinpath(
+            "..", "logs", f"{snakemake.rule}.log"
+        )
+        logfile = snakemake.log.get(
+            "python", snakemake.log[0] if snakemake.log else fallback_path
+        )
         kwargs.update(
-            {'handlers': [
-                # Prefer the 'python' log, otherwise take the first log for each
-                # Snakemake rule
-                logging.FileHandler(logfile),
-                logging.StreamHandler()
+            {
+                "handlers": [
+                    # Prefer the 'python' log, otherwise take the first log for each
+                    # Snakemake rule
+                    logging.FileHandler(logfile),
+                    logging.StreamHandler(),
                 ]
-            })
+            }
+        )
     logging.basicConfig(**kwargs)
-    
+
+
 def mock_snakemake(rulename, **wildcards):
     """
     This function is expected to be executed from the 'scripts'-directory of '
@@ -55,14 +64,16 @@ def mock_snakemake(rulename, **wildcards):
         keyword arguments fixing the wildcards. Only necessary if wildcards are
         needed.
     """
-    import snakemake as sm
     import os
+
+    import snakemake as sm
     from pypsa.descriptors import Dict
     from snakemake.script import Snakemake
 
     script_dir = Path(__file__).parent.resolve()
-    assert Path.cwd().resolve() == script_dir, \
-      f'mock_snakemake has to be run from the repository scripts directory {script_dir}'
+    assert (
+        Path.cwd().resolve() == script_dir
+    ), f"mock_snakemake has to be run from the repository scripts directory {script_dir}"
     os.chdir(script_dir.parent)
     for p in sm.SNAKEFILE_CHOICES:
         if os.path.exists(p):
@@ -82,9 +93,18 @@ def mock_snakemake(rulename, **wildcards):
                 io[i] = os.path.abspath(io[i])
 
     make_accessable(job.input, job.output, job.log)
-    snakemake = Snakemake(job.input, job.output, job.params, job.wildcards,
-                          job.threads, job.resources, job.log,
-                          job.dag.workflow.config, job.rule.name, None,)
+    snakemake = Snakemake(
+        job.input,
+        job.output,
+        job.params,
+        job.wildcards,
+        job.threads,
+        job.resources,
+        job.log,
+        job.dag.workflow.config,
+        job.rule.name,
+        None,
+    )
     # create log and output dir if not existent
     for path in list(snakemake.log) + list(snakemake.output):
         Path(path).parent.mkdir(parents=True, exist_ok=True)

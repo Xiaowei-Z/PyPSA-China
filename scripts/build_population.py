@@ -1,17 +1,22 @@
+# -*- coding: utf-8 -*-
 import pandas as pd
 from functions import pro_names
 
+
 def csv_to_df(csv_name=None):
-    
+
     df = pd.read_csv(csv_name, index_col=0, header=0)
-    
+
     df = df.apply(pd.to_numeric)
 
-    return df['2020'].reindex(pro_names)
+    return df["2020"].reindex(pro_names)
+
 
 def build_population():
 
-    population = 1.e3 * csv_to_df(csv_name='data/population/population_from_National_Data_2020.csv')
+    population = 1.0e3 * csv_to_df(
+        csv_name="data/population/population_from_National_Data_2020.csv"
+    )
 
     population.name = "population"
 
@@ -21,8 +26,9 @@ def build_population():
 if __name__ == "__main__":
 
     # Detect running outside of snakemake and mock snakemake for testing
-    if 'snakemake' not in globals():
+    if "snakemake" not in globals():
         from vresutils import Dict
+
         snakemake = Dict()
         snakemake.output = Dict(population="data/population/population.h5")
 
