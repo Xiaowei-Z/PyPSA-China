@@ -23,13 +23,13 @@ wildcard_constraints:
 
 rule prepare_all_networks:
     input:
-        expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc',
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opt}.nc',
             version=config['version'],
             **config['scenario'])
 
 rule solve_all_networks:
     input:
-        expand(config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc',
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opt}.nc',
             version=config['version'],
             **config['scenario'])
 
@@ -191,19 +191,18 @@ rule prepare_networks:
         **{f"profile_{tech}": f"resources/profile_{tech}.nc"
            for tech in config['renewable']}
     output:
-        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc'
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
     threads: 1
     resources: mem_mb=10000
     script: "scripts/prepare_network.py"
 
 rule solve_networks:
     input:
-        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml',
-        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc',
-        co2_totals_name="data/co2_totals.h5",
-        temp="data/heating/temp.h5"
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
     output:
-        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.nc'
+        network_name=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc'
+    log:
+        solver=normpath("logs/solve_operations_network/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log")
     threads: 4
     resources: mem_mb=35000
     script: "scripts/solve_network.py"

@@ -9,10 +9,10 @@
 'results_dir_name': 'results/'
 'results_suffix': ''
 
-'tmin': '2016-01-01 00:00'
-'tmax': '2016-12-31 23:00'
-'freq': '1H'
-'frequency': 1.
+'tmin': '2020-01-01 00:00'
+'tmax': '2020-12-31 23:00'
+'freq': '8H'
+'frequency': 8.
 
 'load_year': 2020
 
@@ -59,7 +59,7 @@
 
 
 ## HYDRO
-'add_hydro': True
+'add_hydro': False
 'hydro_max_hours': #if None, take E_stor from hydrocapa_df
 'add_ror': False
 'hydro_capital_cost' : False
@@ -84,13 +84,14 @@
 
 
 ## HEAT
-'heat_coupling': True
-'heat_pumps': False
+'heat_coupling': False
+'heat_pumps': True
 'time_dep_hp_cop' : True
-'boilers' : True #Allow electric and gas boilers
-'solar_thermal' : True # for China, decentral only
+'boilers' : False #Allow electric and gas boilers
+'solar_thermal' : False # for China, decentral only
+'tes': False
 
-'chp': True
+'chp': False
 'chp_parameters':
   'eta_elec' : 0.468 #electrical efficiency with no heat output
   'c_v' : 0.15 #loss of fuel for each addition of heat
