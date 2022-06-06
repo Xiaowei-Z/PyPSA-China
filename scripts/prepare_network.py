@@ -8,6 +8,9 @@ from vresutils.costdata import annuity
 # import vresutils.shapes as vshapes
 # from vresutils import timer
 
+import logging
+from _helpers import configure_logging
+
 import pypsa
 from shapely.geometry import Point
 import geopandas as gpd
@@ -26,8 +29,6 @@ from shapely.ops import transform
 import warnings
 import helper
 import xarray as xr
-
-from pyomo.environ import Constraint
 
 from functions import pro_names, HVAC_cost_curve
 
@@ -214,7 +215,7 @@ def prepare_network(options):
     network.set_snapshots(pd.date_range(options['tmin'],options['tmax'],freq=options['freq']))
 
     network.snapshot_weightings[:] = options['frequency']
-    represented_hours = network.snapshot_weightings.sum()
+    represented_hours = network.snapshot_weightings.sum()[0]
     Nyears= represented_hours/8760.
 
     costs = prepare_costs(Nyears, network.options)
@@ -648,18 +649,26 @@ def prepare_network(options):
 
         central_fraction = pd.read_hdf("data/heating/DH_percent2020.h5")
 
-        for cat in [' decentral ', ' central ']:
+        network.madd("Bus",
+                nodes + " decentral space heat",
+                carrier="heat")
 
-            for dog in [' space ', ' water ']:
+        network.madd("Bus",
+                nodes + " decentral water heat",
+                carrier="heat")
 
-                network.madd("Bus",
-                         nodes + cat + dog + "heat",
-                         carrier="heat")
+        network.madd("Bus",
+                nodes + " central space heat",
+                carrier="heat")
+
+        network.madd("Bus",
+                nodes + " central water heat",
+                carrier="heat")
 
         network.madd("Load",
                      nodes,
                      suffix=" decentral space heat",
-                     bus=nodes + " decentral space  heat",
+                     bus=nodes + " decentral space heat",
                      p_set=space_heat_demand[nodes].multiply(1-central_fraction))
 
         network.madd("Load",
@@ -671,13 +680,13 @@ def prepare_network(options):
         network.madd("Load",
                      nodes,
                      suffix=" decentral water heat",
-                     bus=nodes + " decentral water  heat",
+                     bus=nodes + " decentral water heat",
                      p_set=water_heat_demand[nodes].multiply(1-central_fraction))
 
         network.madd("Load",
                      nodes,
                      suffix=" central water heat",
-                     bus=nodes + " central waetr heat",
+                     bus=nodes + " central water heat",
                      p_set=water_heat_demand[nodes].multiply(central_fraction))
 
 
@@ -688,19 +697,19 @@ def prepare_network(options):
                              nodes,
                              suffix=cat + "heat pump",
                              bus0=nodes,
-                             bus1=nodes + cat + "heat",
+                             bus1=nodes + cat + "water heat",
                              efficiency=ashp_cop[nodes] if options["time_dep_hp_cop"] else costs.at[cat.lstrip()+"air-sourced heat pump",'efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','efficiency']*costs.at[cat.lstrip()+'air-sourced heat pump','fixed'],
                              p_nom_extendable=True)
 
-            network.madd("Link",
-                         nodes,
-                         suffix=" ground heat pump",
-                         bus0=nodes,
-                         bus1=nodes + " decentral heat",
-                         efficiency=gshp_cop[nodes] if options["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
-                         capital_cost=costs.at['decentral ground-sourced heat pump','efficiency']*costs.at['decentral ground-sourced heat pump','fixed'],
-                         p_nom_extendable=True)
+            # network.madd("Link",
+            #              nodes,
+            #              suffix=" ground heat pump",
+            #              bus0=nodes,
+            #              bus1=nodes + " decentral water heat",
+            #              efficiency=gshp_cop[nodes] if options["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
+            #              capital_cost=costs.at['decentral ground-sourced heat pump','efficiency']*costs.at['decentral ground-sourced heat pump','fixed'],
+            #              p_nom_extendable=True)
 
         if options['retrofitting']:
 
@@ -767,7 +776,7 @@ def prepare_network(options):
 
                 network.madd("Link",
                              nodes + cat + "water tanks charger",
-                             bus0=nodes + cat + "heat",
+                             bus0=nodes + cat + "space heat",
                              bus1=nodes + cat + "water tanks",
                              efficiency=costs.at['water tank charger','efficiency'],
                              p_nom_extendable=True)
@@ -775,7 +784,7 @@ def prepare_network(options):
                 network.madd("Link",
                              nodes + cat + "water tanks discharger",
                              bus0=nodes + cat + "water tanks",
-                             bus1=nodes + cat + "heat",
+                             bus1=nodes + cat + "space heat",
                              efficiency=costs.at['water tank discharger','efficiency'],
                              p_nom_extendable=True)
 
@@ -789,7 +798,7 @@ def prepare_network(options):
 
         if options["boilers"]:
 
-            for cat in [' decentral ', ' central ']:
+            for cat in [" decentral ", " central "]:
                 # network.madd("Link",
                 #              nodes + cat + "resistive heater",
                 #              bus0=nodes,
@@ -813,7 +822,7 @@ def prepare_network(options):
                              nodes + cat + "gas boiler",
                              p_nom_extendable=True,
                              bus0=nodes + cat + "gas",
-                             bus1=nodes + cat + "heat",
+                             bus1=nodes + cat + "space heat",
                              efficiency=costs.at[cat.lstrip()+'gas boiler','efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'gas boiler','efficiency']*costs.at[cat.lstrip()+'gas boiler','fixed'])
 
@@ -834,7 +843,7 @@ def prepare_network(options):
                          nodes + " central CHPgas",
                          bus_source=nodes + " CHPgas",
                          bus_elec=nodes,
-                         bus_heat=nodes + " central heat",
+                         bus_heat=nodes + " central space heat",
                          p_nom_extendable=True,
                          capital_cost=costs.at['central CHP','fixed'],
                          eta_elec=options['chp_parameters']['eta_elec'],
@@ -859,7 +868,7 @@ def prepare_network(options):
                          nodes + " central CHPcoal",
                          bus_source=nodes + " CHPcoal",
                          bus_elec=nodes,
-                         bus_heat=nodes + " central heat",
+                         bus_heat=nodes + " central space heat",
                          p_nom_extendable=True,
                          capital_cost=10000,
                          p_nom=Coal_CHP_p_nom,
@@ -880,7 +889,7 @@ def prepare_network(options):
                 network.madd("Generator",
                              nodes,
                              suffix=cat + "solar thermal collector",
-                             bus=nodes + cat + "heat",
+                             bus=nodes + cat + "water heat",
                              carrier="solar",
                              p_nom_extendable=True,
                              capital_cost=costs.at[cat.lstrip()+'solar thermal','fixed'],
@@ -1005,23 +1014,11 @@ if __name__ == '__main__':
 
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        with open('config.yaml') as f:
-            config = yaml.load(f,Loader=yaml.Loader)
-        snakemake = Dict()
-        snakemake.input = Dict(options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}.yml',
-            population_name="data/population/population.h5",
-            solar_thermal_name="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle']),
-            heat_demand_name="data/heating/daily_heat_demand.h5",
-            cop_name="data/heating/cop.h5",
-            energy_totals_name="data/energy_totals.h5",
-            co2_totals_name="data/co2_totals.h5",
-            temp="data/heating/temp.h5",
-            **{f"profile_{tech}": f"resources/profile_{tech}.nc"
-                for tech in config['renewable']}
-                               )
-        snakemake.output = Dict(
-            network_name=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}.nc')
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('prepare_networks', flexibility='seperate_co2_reduction', line_limits='opt',
+                                   CHP_emission_accounting='dresden', co2_reduction='0.0',opts='ll')
+    configure_logging(snakemake)
+
           
     options = yaml.load(open(snakemake.input.options_name,"r"),Loader=yaml.Loader)
 
