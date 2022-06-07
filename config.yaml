@@ -10,7 +10,7 @@ scenario:
   flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
   CHP_emission_accounting: [ 'dresden' ]
-  co2_reduction: [0.0]
+  co2_reduction: [0.1]
   opt: ['ll']
 
 

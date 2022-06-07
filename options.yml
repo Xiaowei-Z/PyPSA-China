@@ -84,14 +84,14 @@
 
 
 ## HEAT
-'heat_coupling': False
+'heat_coupling': True
 'heat_pumps': True
 'time_dep_hp_cop' : True
-'boilers' : False #Allow electric and gas boilers
+'boilers' : True #Allow electric and gas boilers
 'solar_thermal' : False # for China, decentral only
 'tes': False
 
-'chp': False
+'chp': True
 'chp_parameters':
   'eta_elec' : 0.468 #electrical efficiency with no heat output
   'c_v' : 0.15 #loss of fuel for each addition of heat

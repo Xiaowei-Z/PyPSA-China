@@ -85,7 +85,7 @@ rule build_solar_thermal_profiles:
     input:
         infile="data/population/population_gridcell_map.h5"
     output:
-        profile_solar_thermal="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle'])
+        profile_solar_thermal = f"data/heating/solar_thermal-{config['solar_thermal_angle']}.h5"
     threads: 8
     resources: mem_mb=30000
     script: "scripts/build_solar_thermal_profiles.py"
