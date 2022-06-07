@@ -1,7 +1,10 @@
+import logging
+from _helpers import configure_logging
 
 from functions import pro_names
-
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 idx = pd.IndexSlice
 
@@ -85,15 +88,11 @@ def build_co2_totals():
     return co2
 
 
-if __name__ == "__main__":
-
-
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.input = Dict(infile1="data/population/population.h5", infile2='data/population/population_gridcell_map.h5')
-        snakemake.output = Dict(outfile1="data/energy_totals.h5", outfile2="data/co2_totals.h5")
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_energy_totals')
+    configure_logging(snakemake)
 
     space_heating_per_hdd, hot_water_per_day = build_energy_totals()
 

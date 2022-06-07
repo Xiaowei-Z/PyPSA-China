@@ -1,10 +1,12 @@
+import logging
+from _helpers import configure_logging
+
 import atlite
 
 import pandas as pd
-import numpy as np
-
 import scipy as sp
 
+logger = logging.getLogger(__name__)
 
 def build_temp_profiles():
 
@@ -24,16 +26,10 @@ def build_temp_profiles():
         store['temperature'] = temp.to_pandas().divide(pop_map.sum())
 
 
-if __name__ == "__main__":
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        import yaml
-        snakemake = Dict()
-        with open('config.yaml') as f:
-            snakemake.config = yaml.load(f)
-        snakemake.input = Dict()
-        snakemake.input.infile = "data/population/population_gridcell_map.h5"
-        snakemake.output = Dict()
-        snakemake.output.temp = "data/heating/temp.h5"
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_temp_profiles')
+    configure_logging(snakemake)
+
     build_temp_profiles()

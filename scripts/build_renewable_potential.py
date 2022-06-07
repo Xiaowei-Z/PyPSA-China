@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 import rasterio as rio
 from shapely import ops,affinity
-import logging
 from pypsa.geo import haversine
 from shapely.geometry import LineString
 from shapely.geometry import Point, MultiPoint

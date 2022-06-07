@@ -59,9 +59,6 @@ def prepare_network(n, solve_opts):
 
     return n
 
-def add_line_volume_limit_constraints(n, config):
-        n.model.line_volume_limit = pypsa.opt.Constraint(expr=sum(n.model.link_p_nom[link]*n.links.at[link,"length"] for link in n.links.index if link[2:3] == "-") <= config['line_volume_limit_factor']*config['line_volume_limit_max'])
-
 def add_battery_constraints(n):
     nodes = n.buses.index[n.buses.carrier == "battery"]
     if nodes.empty or ('Link', 'p_nom') not in n.variables.index:
@@ -72,7 +69,7 @@ def add_battery_constraints(n):
                    link_p_nom[nodes + " discharger"].values))
     define_constraints(n, lhs, "=", 0, 'Link', 'charger_ratio')
 
-def extra_functionality(n):
+def extra_functionality(n, snapshots):
     """
     Collects supplementary constraints which will be passed to ``pypsa.linopf.network_lopf``.
     If you want to enforce additional custom constraints, this is a good location to add them.
@@ -80,8 +77,6 @@ def extra_functionality(n):
     """
     opts = n.opts
     config = n.config
-    if 'll' in opts:
-        add_line_volume_limit_constraints(n,config)
     add_battery_constraints(n)
 
 def solve_network(n, config, opts='', **kwargs):

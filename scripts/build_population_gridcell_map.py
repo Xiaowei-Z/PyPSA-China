@@ -1,10 +1,15 @@
+
+import logging
+from _helpers import configure_logging
+
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 import atlite
 import xarray as xr
-import subprocess
 from functions import pro_names
+
+logger = logging.getLogger(__name__)
 
 def convert_to_gdf(df):
 
@@ -92,13 +97,10 @@ def build_population_map():
 
 
 
-if __name__ == "__main__":
-
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.input = Dict(infile="data/population/population.h5")
-        snakemake.output = Dict(population_map='data/population/population_gridcell_map.h5')
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_population_gridcell_map')
+    configure_logging(snakemake)
 
     build_population_map()

@@ -183,7 +183,7 @@ def prepare_data(network):
     ###############
 
     #tCO2
-    represented_hours = network.snapshot_weightings.sum()
+    represented_hours = network.snapshot_weightings.sum()[0]
     Nyears= represented_hours/8760.
     with pd.HDFStore(snakemake.input.co2_totals_name, mode='r') as store:
         co2_totals = 1.e-3 * Nyears * store['co2']
@@ -650,45 +650,24 @@ def prepare_network(options):
         central_fraction = pd.read_hdf("data/heating/DH_percent2020.h5")
 
         network.madd("Bus",
-                nodes + " decentral space heat",
+                nodes + " decentral heat",
                 carrier="heat")
 
         network.madd("Bus",
-                nodes + " decentral water heat",
-                carrier="heat")
-
-        network.madd("Bus",
-                nodes + " central space heat",
-                carrier="heat")
-
-        network.madd("Bus",
-                nodes + " central water heat",
+                nodes + " central heat",
                 carrier="heat")
 
         network.madd("Load",
                      nodes,
-                     suffix=" decentral space heat",
-                     bus=nodes + " decentral space heat",
-                     p_set=space_heat_demand[nodes].multiply(1-central_fraction))
+                     suffix=" decentral heat",
+                     bus=nodes + " decentral heat",
+                     p_set=heat_demand[nodes].multiply(1-central_fraction))
 
         network.madd("Load",
                      nodes,
-                     suffix=" central space heat",
-                     bus=nodes + " central space heat",
-                     p_set=space_heat_demand[nodes].multiply(central_fraction))
-
-        network.madd("Load",
-                     nodes,
-                     suffix=" decentral water heat",
-                     bus=nodes + " decentral water heat",
-                     p_set=water_heat_demand[nodes].multiply(1-central_fraction))
-
-        network.madd("Load",
-                     nodes,
-                     suffix=" central water heat",
-                     bus=nodes + " central water heat",
-                     p_set=water_heat_demand[nodes].multiply(central_fraction))
-
+                     suffix=" central heat",
+                     bus=nodes + " central heat",
+                     p_set=heat_demand[nodes].multiply(central_fraction))
 
         if options['heat_pumps']:
 
@@ -697,19 +676,19 @@ def prepare_network(options):
                              nodes,
                              suffix=cat + "heat pump",
                              bus0=nodes,
-                             bus1=nodes + cat + "water heat",
+                             bus1=nodes + cat + "heat",
                              efficiency=ashp_cop[nodes] if options["time_dep_hp_cop"] else costs.at[cat.lstrip()+"air-sourced heat pump",'efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','efficiency']*costs.at[cat.lstrip()+'air-sourced heat pump','fixed'],
                              p_nom_extendable=True)
 
-            # network.madd("Link",
-            #              nodes,
-            #              suffix=" ground heat pump",
-            #              bus0=nodes,
-            #              bus1=nodes + " decentral water heat",
-            #              efficiency=gshp_cop[nodes] if options["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
-            #              capital_cost=costs.at['decentral ground-sourced heat pump','efficiency']*costs.at['decentral ground-sourced heat pump','fixed'],
-            #              p_nom_extendable=True)
+            network.madd("Link",
+                         nodes,
+                         suffix=" ground heat pump",
+                         bus0=nodes,
+                         bus1=nodes + " decentral heat",
+                         efficiency=gshp_cop[nodes] if options["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
+                         capital_cost=costs.at['decentral ground-sourced heat pump','efficiency']*costs.at['decentral ground-sourced heat pump','fixed'],
+                         p_nom_extendable=True)
 
         if options['retrofitting']:
 
@@ -776,7 +755,7 @@ def prepare_network(options):
 
                 network.madd("Link",
                              nodes + cat + "water tanks charger",
-                             bus0=nodes + cat + "space heat",
+                             bus0=nodes + cat + "heat",
                              bus1=nodes + cat + "water tanks",
                              efficiency=costs.at['water tank charger','efficiency'],
                              p_nom_extendable=True)
@@ -784,7 +763,7 @@ def prepare_network(options):
                 network.madd("Link",
                              nodes + cat + "water tanks discharger",
                              bus0=nodes + cat + "water tanks",
-                             bus1=nodes + cat + "space heat",
+                             bus1=nodes + cat + "heat",
                              efficiency=costs.at['water tank discharger','efficiency'],
                              p_nom_extendable=True)
 
@@ -822,7 +801,7 @@ def prepare_network(options):
                              nodes + cat + "gas boiler",
                              p_nom_extendable=True,
                              bus0=nodes + cat + "gas",
-                             bus1=nodes + cat + "space heat",
+                             bus1=nodes + cat + "heat",
                              efficiency=costs.at[cat.lstrip()+'gas boiler','efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'gas boiler','efficiency']*costs.at[cat.lstrip()+'gas boiler','fixed'])
 
@@ -843,7 +822,7 @@ def prepare_network(options):
                          nodes + " central CHPgas",
                          bus_source=nodes + " CHPgas",
                          bus_elec=nodes,
-                         bus_heat=nodes + " central space heat",
+                         bus_heat=nodes + " central heat",
                          p_nom_extendable=True,
                          capital_cost=costs.at['central CHP','fixed'],
                          eta_elec=options['chp_parameters']['eta_elec'],
@@ -868,7 +847,7 @@ def prepare_network(options):
                          nodes + " central CHPcoal",
                          bus_source=nodes + " CHPcoal",
                          bus_elec=nodes,
-                         bus_heat=nodes + " central space heat",
+                         bus_heat=nodes + " central heat",
                          p_nom_extendable=True,
                          capital_cost=10000,
                          p_nom=Coal_CHP_p_nom,

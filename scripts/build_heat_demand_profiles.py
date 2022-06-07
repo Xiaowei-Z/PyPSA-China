@@ -1,10 +1,12 @@
+import logging
+from _helpers import configure_logging
+
 import atlite
 
 import pandas as pd
-import numpy as np
-
 import scipy as sp
 
+logger = logging.getLogger(__name__)
 
 def build_heat_demand_profiles():
 
@@ -34,13 +36,10 @@ def build_heat_demand_profiles():
         store['heat_demand_profiles'] = Hd_2020
 
 
-if __name__ == "__main__":
-
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
-        snakemake.output = Dict(daily_heat_demand="data/heating/daily_heat_demand.h5")
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_heat_demand_profiles')
+    configure_logging(snakemake)
 
     df = build_heat_demand_profiles()

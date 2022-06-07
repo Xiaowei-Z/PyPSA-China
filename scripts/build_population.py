@@ -1,5 +1,10 @@
+import logging
+from _helpers import configure_logging
+
 import pandas as pd
 from functions import pro_names
+
+logger = logging.getLogger(__name__)
 
 def csv_to_df(csv_name=None):
     
@@ -18,12 +23,10 @@ def build_population():
     population.to_hdf(snakemake.output.population, key=population.name)
 
 
-if __name__ == "__main__":
-
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.output = Dict(population="data/population/population.h5")
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_population')
+    configure_logging(snakemake)
 
     build_population()

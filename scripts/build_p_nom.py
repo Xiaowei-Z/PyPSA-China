@@ -3,9 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 # coding: utf-8
+import logging
+from _helpers import configure_logging
 
 import pandas as pd
 from functions import pro_names
+
+logger = logging.getLogger(__name__)
 
 def csv_to_df(csv_name=None):    
     df = pd.read_csv(csv_name, index_col=0, header=0)    
@@ -37,18 +41,10 @@ def build_p_nom():
     solar_capacity.to_hdf(snakemake.output.solar_capacity, key=solar_capacity.name)
     nuclear_capacity.to_hdf(snakemake.output.nuclear_capacity, key=nuclear_capacity.name)
     
-if __name__ == "__main__":
-
-    # Detect running outside of snakemake and mock snakemake for testing
+if __name__ == '__main__':
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.output = Dict(coal_capacity="data/p_nom/coal_p_nom.h5", 
-                                CHP_capacity="data/p_nom/CHP_p_nom.h5", 
-                                OCGT_capacity="data/p_nom/OCGT_p_nom.h5",
-                                offwind_capacity="data/p_nom/offwind_p_nom.h5",
-                                onwind_capacity="data/p_nom/onwind_p_nom.h5",
-                                solar_capacity="data/p_nom/solar_p_nom.h5",
-                                nuclear_capacity="data/p_nom/nuclear_p_nom.h5")
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_p_nom')
+    configure_logging(snakemake)
         
     build_p_nom()

@@ -1,10 +1,11 @@
+import logging
+from _helpers import configure_logging
+
 import atlite
-
 import pandas as pd
-import numpy as np
-
 import scipy as sp
 
+logger = logging.getLogger(__name__)
 
 def build_cop_profiles():
 
@@ -54,13 +55,12 @@ def build_cop_profiles():
         store['gshp_cop_profiles'] = cop_soil
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
-        from vresutils import Dict
-        snakemake = Dict()
-        snakemake.input = Dict(infile="data/population/population_gridcell_map.h5")
-        snakemake.output = Dict(cop="data/heating/cop.h5")
+        from _helpers import mock_snakemake
+        snakemake = mock_snakemake('build_cop_profiles')
+    configure_logging(snakemake)
 
     build_cop_profiles()
