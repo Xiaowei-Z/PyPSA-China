@@ -169,18 +169,8 @@ rule build_renewable_potential:
     resources: mem_mb=ATLITE_NPROCESSES * 5000
     script: "scripts/build_renewable_potential.py"
 
-rule make_options:
-    input:
-        options_name="options.yml"
-    output:
-        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml'
-    threads: 1
-    resources: mem_mb=1000
-    script: "scripts/make_options.py"
-
 rule prepare_networks:
     input:
-        options_name=config['results_dir'] + 'version-' + str(config['version']) + '/options/options-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}.yml',
         population_name="data/population/population.h5",
         solar_thermal_name="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle']),
     	heat_demand_name="data/heating/daily_heat_demand.h5",
@@ -206,3 +196,13 @@ rule solve_networks:
     threads: 4
     resources: mem_mb=35000
     script: "scripts/solve_network.py"
+
+rule plot_network:
+    input:
+        network=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
+        tech_costs=COSTS
+    output:
+        only_map=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.{ext}',
+        ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.{ext}'
+    log: "logs/plot_network/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_{ext}.log"
+    script: "scripts/plot_network.py"
