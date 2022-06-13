@@ -139,7 +139,7 @@ elif flex in ['seperate_co2_reduction']:
     options['helmeth'] = False
     options['dac'] = False
 elif flex in ['seperate_co2_reduction_tes']:
-    options['chp'] = True
+    options['chp'] = False
     options['transport_coupling'] = False
     options['heat_coupling'] = True
     options['add_methanation'] = False

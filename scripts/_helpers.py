@@ -91,3 +91,85 @@ def mock_snakemake(rulename, **wildcards):
 
     os.chdir(script_dir)
     return snakemake
+
+def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
+    import pypsa
+    from add_electricity import update_transmission_costs, load_costs
+
+    n = pypsa.Network(fn)
+
+    n.loads["carrier"] = n.loads.bus.map(n.buses.carrier) + " load"
+    n.stores["carrier"] = n.stores.bus.map(n.buses.carrier)
+
+    n.links["carrier"] = (n.links.bus0.map(n.buses.carrier) + "-" + n.links.bus1.map(n.buses.carrier))
+    n.lines["carrier"] = "AC line"
+    n.transformers["carrier"] = "AC transformer"
+
+    n.lines['s_nom'] = n.lines['s_nom_min']
+    n.links['p_nom'] = n.links['p_nom_min']
+
+    if combine_hydro_ps:
+        n.storage_units.loc[n.storage_units.carrier.isin({'PHS', 'hydro'}), 'carrier'] = 'hydro+PHS'
+
+    # if the carrier was not set on the heat storage units
+    # bus_carrier = n.storage_units.bus.map(n.buses.carrier)
+    # n.storage_units.loc[bus_carrier == "heat","carrier"] = "water tanks"
+
+    Nyears = n.snapshot_weightings.objective.sum() / 8760.
+    costs = load_costs(tech_costs, config['costs'], config['electricity'], Nyears)
+    update_transmission_costs(n, costs)
+
+    return n
+
+def aggregate_p(n):
+    return pd.concat([
+        n.generators_t.p.sum().groupby(n.generators.carrier).sum(),
+        n.storage_units_t.p.sum().groupby(n.storage_units.carrier).sum(),
+        n.stores_t.p.sum().groupby(n.stores.carrier).sum(),
+        -n.loads_t.p.sum().groupby(n.loads.carrier).sum()
+    ])
+
+def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
+
+    components = dict(Link=("p_nom", "p0"),
+                      Generator=("p_nom", "p"),
+                      StorageUnit=("p_nom", "p"),
+                      Store=("e_nom", "p"),
+                      Line=("s_nom", None),
+                      Transformer=("s_nom", None))
+
+    costs = {}
+    for c, (p_nom, p_attr) in zip(
+        n.iterate_components(components.keys(), skip_empty=False),
+        components.values()
+    ):
+        if c.df.empty: continue
+        if not existing_only: p_nom += "_opt"
+        costs[(c.list_name, 'capital')] = (c.df[p_nom] * c.df.capital_cost).groupby(c.df.carrier).sum()
+        if p_attr is not None:
+            p = c.pnl[p_attr].sum()
+            if c.name == 'StorageUnit':
+                p = p.loc[p > 0]
+            costs[(c.list_name, 'marginal')] = (p*c.df.marginal_cost).groupby(c.df.carrier).sum()
+    costs = pd.concat(costs)
+
+    if flatten:
+        assert opts is not None
+        conv_techs = opts['conv_techs']
+
+        costs = costs.reset_index(level=0, drop=True)
+        costs = costs['capital'].add(
+            costs['marginal'].rename({t: t + ' marginal' for t in conv_techs}),
+            fill_value=0.
+        )
+
+    return costs
+
+
+def update_p_nom_max(n):
+    # if extendable carriers (solar/onwind/...) have capacity >= 0,
+    # e.g. existing assets from the OPSD project are included to the network,
+    # the installed capacity might exceed the expansion limit.
+    # Hence, we update the assumptions.
+
+    n.generators.p_nom_max = n.generators[['p_nom_min', 'p_nom_max']].max(1)

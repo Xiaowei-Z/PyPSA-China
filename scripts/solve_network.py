@@ -17,6 +17,7 @@ from pypsa.linopf import (get_var, define_constraints, linexpr, join_exprs,
 
 from pathlib import Path
 from vresutils.benchmark import memory_logger
+import helper
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('solve_networks', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0',opts='ll')
+                                   CHP_emission_accounting='dresden', co2_reduction='0.1',opts='ll')
     configure_logging(snakemake)
 
     tmpdir = snakemake.config['solving'].get('tmpdir') #tmp dir?
@@ -123,7 +124,7 @@ if __name__ == '__main__':
 
     fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
-        n = pypsa.Network(snakemake.input[0])
+        n = helper.Network(snakemake.input[0])
         n = prepare_network(n, solve_opts)
         n = solve_network(n, snakemake.config, opts, solver_dir=tmpdir,
                           solver_logfile=snakemake.log.solver)
