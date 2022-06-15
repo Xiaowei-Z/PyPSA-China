@@ -17,7 +17,6 @@ from pypsa.linopf import (get_var, define_constraints, linexpr, join_exprs,
 
 from pathlib import Path
 from vresutils.benchmark import memory_logger
-import helper
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +123,33 @@ if __name__ == '__main__':
 
     fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
-        n = helper.Network(snakemake.input[0])
+        # add CHP definition
+        override_component_attrs = pypsa.descriptors.Dict(
+            {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
+        )
+        override_component_attrs["Link"].loc["bus2"] = [
+            "string",
+            np.nan,
+            np.nan,
+            "2nd bus",
+            "Input (optional)",
+        ]
+        override_component_attrs["Link"].loc["efficiency2"] = [
+            "static or series",
+            "per unit",
+            1.0,
+            "2nd bus efficiency",
+            "Input (optional)",
+        ]
+        override_component_attrs["Link"].loc["p2"] = [
+            "series",
+            "MW",
+            0.0,
+            "2nd bus output",
+            "Output",
+        ]
+
+        n = pypsa.Network(snakemake.input[0],override_component_attrs=override_component_attrs)
         n = prepare_network(n, solve_opts)
         n = solve_network(n, snakemake.config, opts, solver_dir=tmpdir,
                           solver_logfile=snakemake.log.solver)

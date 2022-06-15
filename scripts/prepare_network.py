@@ -27,7 +27,6 @@ from functools import partial
 import pyproj
 from shapely.ops import transform
 import warnings
-import helper
 import xarray as xr
 
 from functions import pro_names, HVAC_cost_curve
@@ -192,9 +191,34 @@ def prepare_data(network):
 
 
 def prepare_network(config):
+    # add CHP definition
+    override_component_attrs = pypsa.descriptors.Dict(
+        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
+    )
+    override_component_attrs["Link"].loc["bus2"] = [
+        "string",
+        np.nan,
+        np.nan,
+        "2nd bus",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["efficiency2"] = [
+        "static or series",
+        "per unit",
+        1.0,
+        "2nd bus efficiency",
+        "Input (optional)",
+    ]
+    override_component_attrs["Link"].loc["p2"] = [
+        "series",
+        "MW",
+        0.0,
+        "2nd bus output",
+        "Output",
+    ]
 
     #Build the Network object, which stores all other objects
-    network = helper.Network()
+    network = pypsa.Network(override_component_attrs=override_component_attrs)
 
     #load graph
     nodes = pd.Index(pro_names)
@@ -235,6 +259,8 @@ def prepare_network(config):
     network.add("Carrier","onwind")
     network.add("Carrier","offwind")
     network.add("Carrier","solar")
+    if config['add_solar_thermal']:
+        network.add("Carrier","solar thermal")
     if config['add_PHS']:
         network.add("Carrier","PHS")
     if config['add_hydro']:
@@ -310,7 +336,8 @@ def prepare_network(config):
                  p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['offwind','fixed'],
                  p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
-                 marginal_cost=costs.at['offwind','VOM'])
+                 marginal_cost=costs.at['offwind','VOM']
+                 )
     
     Solar_p_nom = pd.read_hdf('data/p_nom/solar_p_nom.h5')
     
@@ -324,7 +351,8 @@ def prepare_network(config):
                  p_nom_max=ds_solar['p_nom_max'].to_pandas(),
                  capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
                  p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
-                 marginal_cost=costs.at['solar','VOM'])
+                 marginal_cost=costs.at['solar','VOM']
+                 )
 
     #add conventionals
     for generator,carrier in [("OCGT","gas")]:
@@ -340,7 +368,8 @@ def prepare_network(config):
                      carrier=carrier)
 
         network.madd("Link",
-                     nodes + " " + generator,
+                     nodes,
+                     suffix=" " + generator,
                      bus0=nodes + " " + carrier,
                      bus1=nodes,
                      marginal_cost=costs.at[generator,'efficiency']*costs.at[generator,'VOM'], #NB: VOM is per MWel
@@ -831,17 +860,16 @@ def prepare_network(config):
                          e_min_pu=-1.,
                          marginal_cost=costs.at['gas','fuel'])
 
-            network.madd("CHP",
-                         nodes + " central CHPgas",
-                         bus_source=nodes + " CHPgas",
-                         bus_elec=nodes,
-                         bus_heat=nodes + " central heat",
+            network.madd("Link",
+                         nodes,
+                         suffix=" CHPgas",
+                         bus0=nodes + " CHPgas",
+                         bus1=nodes,
+                         bus2=nodes + " central heat",
                          p_nom_extendable=True,
                          capital_cost=costs.at['central CHP','fixed'],
-                         eta_elec=config['chp_parameters']['eta_elec'],
-                         c_v=config['chp_parameters']['c_v'],
-                         c_m=config['chp_parameters']['c_m'],
-                         p_nom_ratio=config['chp_parameters']['p_nom_ratio'])
+                         efficiency=config['chp_parameters']['eff_el'],
+                         efficiency2=config['chp_parameters']['eff_th'])
             
             Coal_CHP_p_nom = pd.read_hdf('data/p_nom/CHP_p_nom.h5')
             
@@ -859,18 +887,18 @@ def prepare_network(config):
                          e_min_pu=-1.,
                          marginal_cost=costs.at['coal','fuel'])
 
-            network.madd("CHP",
-                         nodes + " central CHPcoal",
-                         bus_source=nodes + " CHPcoal",
-                         bus_elec=nodes,
-                         bus_heat=nodes + " central heat",
+            network.madd("Link",
+                         nodes,
+                         suffix=" CHPcoal",
+                         bus0=nodes + " CHPcoal",
+                         bus1=nodes,
+                         bus2=nodes + " central heat",
                          p_nom_extendable=True,
                          capital_cost=10000,
                          p_nom=Coal_CHP_p_nom,
-                         eta_elec=0.40,
-                         c_v=config['chp_parameters']['c_v'],
-                         c_m=config['chp_parameters']['c_m'],
-                         p_nom_ratio=config['chp_parameters']['p_nom_ratio'])
+                         efficiency=config['chp_parameters']['eff_el'],
+                         efficiency2=config['chp_parameters']['eff_th']
+                         )
 
         if config["add_solar_thermal"]:
 
@@ -885,7 +913,7 @@ def prepare_network(config):
                              nodes,
                              suffix=cat + "solar thermal collector",
                              bus=nodes + cat + "heat",
-                             carrier="solar",
+                             carrier="solar thermal",
                              p_nom_extendable=True,
                              capital_cost=costs.at[cat.lstrip()+'solar thermal','fixed'],
                              p_max_pu=solar_thermal[nodes].clip(1.e-4))
