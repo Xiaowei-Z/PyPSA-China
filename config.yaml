@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
-version: 0.1.1
+version: 0.1.3
 
 
 results_dir: 'results/'
@@ -11,7 +11,7 @@ scenario:
   flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
   CHP_emission_accounting: [ 'dresden' ]
-  co2_reduction: 0.1
+  co2_reduction: -100
   opt: ['ll']
 
 load_year: 2020
@@ -72,7 +72,7 @@ retroII-fraction: 0.55
 
 heat_coupling: True
 add_heat_pumps: True
-add_boilers: True
+add_boilers: False
 add_chp: True
 chp_parameters:
   eff_el: 0.3978
@@ -180,7 +180,10 @@ plotting:
     boundaries: [60, 135., 15, 60.]
     p_nom:
       bus_size_factor: 1.e+5
-      linewidth_factor: 2.e+4
+      linewidth_factor: 5.e+4
+      bus_size_factor_demand: 2.e+7
+      bus_size_factor_heat: 2.e+4
+      linewidth_factor_heat: 5.e+4
 
   costs_max: 1400
   costs_threshold: 1
@@ -188,8 +191,9 @@ plotting:
   energy_max: 24000.
   energy_min: -24000.
   energy_threshold: 50.
+  loads: ['electricity', 'decentral heat', 'central heat']
   vre_techs: [ "onwind", "offwind", "solar"]
-  conv_techs: [ "OCGT", "CCGT", "Nuclear", "coal" ]
+  conv_techs: [ "gas-AC", "CCGT", "Nuclear", "coal", "coal-AC","solar thermal","AC-heat"]
   storage_techs: [ "hydro+PHS", "battery", "H2" ]
   load_carriers: [ "AC load" ]
   AC_carriers: [ "AC line", "AC transformer" ]
@@ -219,18 +223,20 @@ plotting:
     'waste' : '#68896b'
     'geothermal' : '#ba91b1'
     "OCGT" : "#d35050"
+    "gas-AC" : "#d35050"
     "gas" : "#d35050"
-    "natural gas" : "#d35050"
-    "CCGT" : "#b20101"
+    "AC-heat" : "#b20101"
     "nuclear" : "#ff9000"
     "coal" : "#707070"
+    "coal-AC" : "#262626"
     "lignite" : "#9e5a01"
-    "oil" : "#262626"
     "H2" : "#ea048a"
     "hydrogen storage" : "#ea048a"
     "battery" : "#b8ea04"
     "Electric load" : "#f9d002"
     "electricity" : "#f9d002"
+    "central heat" : "#b8ea04"
+    "decentral heat" : "#707070"
     "lines" : "#70af1d"
     "transmission lines" : "#70af1d"
     "AC-AC" : "#70af1d"
@@ -242,16 +248,20 @@ plotting:
   nice_names:
     OCGT: "Open-Cycle Gas"
     CCGT: "Combined-Cycle Gas"
-    offwind-ac: "Offshore Wind (AC)"
-    offwind-dc: "Offshore Wind (DC)"
+    offwind: "Offshore Wind"
     onwind: "Onshore Wind"
     solar: "Solar"
+    coal: "Coal Power Plant"
+    coal-AC: "Combined Heat and Power"
+    gas-AC: "Open-Cycle Gas"
     PHS: "Pumped Hydro Storage"
     hydro: "Reservoir & Dam"
     battery: "Battery Storage"
     H2: "Hydrogen Storage"
     lines: "Transmission Lines"
     ror: "Run of River"
+    AC-heat: "Heat Pump"
+    solar thermal: "Solar Thermal"
 
 
 solving:
