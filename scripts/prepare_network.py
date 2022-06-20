@@ -374,7 +374,7 @@ def prepare_network(config):
                      bus1=nodes,
                      marginal_cost=costs.at[generator,'efficiency']*costs.at[generator,'VOM'], #NB: VOM is per MWel
                      capital_cost=costs.at[generator,'efficiency']*costs.at[generator,'fixed'], #NB: fixed cost is per MWel
-                     p_nom_extendable=True,
+                     p_nom_extendable=False,
                      p_nom=OCGT_p_nom,
                      efficiency=costs.at[generator,'efficiency'])
 
@@ -846,30 +846,30 @@ def prepare_network(config):
 
         if config["add_chp"]:
             
-            network.madd("Bus",
-                         nodes,
-                         suffix=' CHPgas',
-                         x=pro_shapes['geometry'].centroid.x,
-                         y=pro_shapes['geometry'].centroid.y,
-                         carrier='gas')
-
-            network.madd("Store",
-                         nodes + " CHPgas Store",
-                         bus=nodes + " CHPgas",
-                         e_nom_extendable=True,
-                         e_min_pu=-1.,
-                         marginal_cost=costs.at['gas','fuel'])
-
-            network.madd("Link",
-                         nodes,
-                         suffix=" CHPgas",
-                         bus0=nodes + " CHPgas",
-                         bus1=nodes,
-                         bus2=nodes + " central heat",
-                         p_nom_extendable=True,
-                         capital_cost=costs.at['central CHP','fixed'],
-                         efficiency=config['chp_parameters']['eff_el'],
-                         efficiency2=config['chp_parameters']['eff_th'])
+            # network.madd("Bus",
+            #              nodes,
+            #              suffix=' CHPgas',
+            #              x=pro_shapes['geometry'].centroid.x,
+            #              y=pro_shapes['geometry'].centroid.y,
+            #              carrier='gas')
+            #
+            # network.madd("Store",
+            #              nodes + " CHPgas Store",
+            #              bus=nodes + " CHPgas",
+            #              e_nom_extendable=True,
+            #              e_min_pu=-1.,
+            #              marginal_cost=costs.at['gas','fuel'])
+            #
+            # network.madd("Link",
+            #              nodes,
+            #              suffix=" CHPgas",
+            #              bus0=nodes + " CHPgas",
+            #              bus1=nodes,
+            #              bus2=nodes + " central heat",
+            #              p_nom_extendable=True,
+            #              capital_cost=costs.at['central CHP','fixed'],
+            #              efficiency=config['chp_parameters']['eff_el'],
+            #              efficiency2=config['chp_parameters']['eff_th'])
             
             Coal_CHP_p_nom = pd.read_hdf('data/p_nom/CHP_p_nom.h5')
             
@@ -893,7 +893,7 @@ def prepare_network(config):
                          bus0=nodes + " CHPcoal",
                          bus1=nodes,
                          bus2=nodes + " central heat",
-                         p_nom_extendable=True,
+                         p_nom_extendable=False,
                          capital_cost=10000,
                          p_nom=Coal_CHP_p_nom,
                          efficiency=config['chp_parameters']['eff_el'],

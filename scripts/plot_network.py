@@ -56,7 +56,7 @@ def set_plot_style():
                     }])
 
 
-def plot_map(n, opts, ax=None, attribute='p_nom'):
+def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
     if ax is None:
         ax = plt.gca()
 
@@ -67,8 +67,9 @@ def plot_map(n, opts, ax=None, attribute='p_nom'):
 
     if attribute == 'p_nom':
         # bus_sizes = n.generators_t.p.sum().loc[n.generators.carrier == "load"].groupby(n.generators.bus).sum()
-        bus_sizes = pd.concat((n.generators.query('carrier != "load"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
-                               n.storage_units.groupby(['bus', 'carrier']).p_nom_opt.sum()))
+        bus_sizes = pd.concat((n.generators.query('carrier != "solar thermal"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
+                               n.links.query('carrier == ["gas-AC","coal-AC"]').groupby(['bus1', 'carrier']).p_nom_opt.sum()))
+        bus_sizes = bus_sizes.groupby(['bus','carrier']).sum()
         line_widths_exp = n.lines.s_nom_opt
         line_widths_cur = n.lines.s_nom_min
         link_widths_exp = n.links.p_nom_opt
@@ -116,7 +117,7 @@ def plot_map(n, opts, ax=None, attribute='p_nom'):
     handles = []
     labels = []
 
-    for s in (10, 1):
+    for s in (100, 10):
         handles.append(plt.Line2D([0], [0], color=line_colors['exp'],
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("{} GW".format(s))
@@ -129,7 +130,7 @@ def plot_map(n, opts, ax=None, attribute='p_nom'):
 
     handles = []
     labels = []
-    for s in (10, 5):
+    for s in (100, 10):
         handles.append(plt.Line2D([0], [0], color=line_colors['cur'],
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("/")
@@ -140,8 +141,8 @@ def plot_map(n, opts, ax=None, attribute='p_nom'):
                      title=' ')
     ax.add_artist(l1_2)
 
-    handles = make_legend_circles_for([10e3, 5e3, 1e3], scale=bus_size_factor, facecolor="w")
-    labels = ["{} GW".format(s) for s in (10, 5, 3)]
+    handles = make_legend_circles_for([10e4, 5e4, 1e4], scale=bus_size_factor, facecolor="w")
+    labels = ["{} GW".format(s) for s in (100, 50, 30)]
     l2 = ax.legend(handles, labels,
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
                    frameon=False, labelspacing=1.0,
@@ -248,7 +249,7 @@ if __name__ == "__main__":
     scenario_opts = wildcards.opts.split('-')
 
     fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
-    plot_map(n, config["plotting"], ax=ax, attribute=wildcards.attr)
+    plot_opt_map(n, config["plotting"], ax=ax, attribute=wildcards.attr)
 
     fig.savefig(snakemake.output.only_map, dpi=150, bbox_inches='tight')
 
