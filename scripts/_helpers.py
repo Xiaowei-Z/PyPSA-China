@@ -105,8 +105,8 @@ def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     n.lines["carrier"] = "AC line"
     n.transformers["carrier"] = "AC transformer"
 
-    n.lines['s_nom'] = n.lines['s_nom_min']
-    n.links['p_nom'] = n.links['p_nom_min']
+    # n.lines['s_nom'] = n.lines['s_nom_min']
+    # n.links['p_nom'] = n.links['p_nom_min']
 
     if combine_hydro_ps:
         n.storage_units.loc[n.storage_units.carrier.isin({'PHS', 'hydro'}), 'carrier'] = 'hydro+PHS'

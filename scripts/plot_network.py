@@ -142,7 +142,7 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
     ax.add_artist(l1_2)
 
     handles = make_legend_circles_for([10e4, 5e4, 1e4], scale=bus_size_factor, facecolor="w")
-    labels = ["{} GW".format(s) for s in (100, 50, 30)]
+    labels = ["{} GW".format(s) for s in (100, 50, 10)]
     l2 = ax.legend(handles, labels,
                    loc="upper left", bbox_to_anchor=(0.01, 1.01),
                    frameon=False, labelspacing=1.0,
@@ -168,11 +168,13 @@ def plot_total_energy_pie(n, opts, ax=None):
 
     ax.set_title('Energy per technology', fontdict=dict(fontsize="medium"))
 
-    e_primary = aggregate_p(n).drop('load', errors='ignore').loc[lambda s: s > 0]
+    e_primary = aggregate_p(n).drop('load', errors='ignore').loc[lambda s: s > 1]
+
+    e_primary = e_primary.groupby('carrier').sum()
 
     patches, texts, autotexts = ax.pie(e_primary,
                                        startangle=90,
-                                       labels=e_primary.rename(opts['nice_names']).index,
+                                       labels=e_primary.rename(opts['nice_names']['energy']).index,
                                        autopct='%.0f%%',
                                        shadow=False,
                                        colors=[opts['tech_colors'][tech] for tech in e_primary.index])

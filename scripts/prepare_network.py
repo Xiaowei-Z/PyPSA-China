@@ -185,7 +185,7 @@ def prepare_data(network):
     represented_hours = network.snapshot_weightings.sum()[0]
     Nyears= represented_hours/8760.
     with pd.HDFStore(snakemake.input.co2_totals_name, mode='r') as store:
-        co2_totals = 1.e-3 * Nyears * store['co2']
+        co2_totals = Nyears * store['co2']
 
     return heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals
 
@@ -283,13 +283,13 @@ def prepare_network(config):
 
         if config['scenario']['co2_reduction'] is not None:
 
-            co2_limit = co2_totals["electricity"]
+            co2_limit = 5.43*1e9
 
-            if config["transport_coupling"]:
-                co2_limit += co2_totals['transport']
-
-            if config["heat_coupling"]:
-                co2_limit += co2_totals['heating']
+            # if config["transport_coupling"]:
+            #     co2_limit += co2_totals['transport']
+            #
+            # if config["heat_coupling"]:
+            #     co2_limit += co2_totals['heating']
 
             co2_limit *= 1 - config['scenario']['co2_reduction']
 
@@ -711,7 +711,7 @@ def prepare_network(config):
                              bus0=nodes,
                              bus1=nodes + cat + "heat",
                              efficiency=ashp_cop[nodes] if config["time_dep_hp_cop"] else costs.at[cat.lstrip()+"air-sourced heat pump",'efficiency'],
-                             capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','investment']*1000,
+                             capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','investment'],
                              p_nom_extendable=True)
 
             network.madd("Link",
@@ -720,7 +720,7 @@ def prepare_network(config):
                          bus0=nodes,
                          bus1=nodes + " decentral heat",
                          efficiency=gshp_cop[nodes] if config["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
-                         capital_cost=costs.at['decentral ground-sourced heat pump','investment']*1000,
+                         capital_cost=costs.at['decentral ground-sourced heat pump','investment'],
                          p_nom_extendable=True)
 
         if config['retrofitting']:
