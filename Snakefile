@@ -206,3 +206,13 @@ rule plot_network:
         ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.{ext}'
     log: "logs/plot_network/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_{ext}.log"
     script: "scripts/plot_network.py"
+
+rule make_summary:
+    input:
+        network=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
+        tech_costs=COSTS,
+    output:
+        summary=config['results_dir'] + 'version-' + str(config['version']) + '/summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.csv',
+    log: "logs/make_summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log"
+    script: "scripts/make_summary.py"
+
