@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
-version: 0.3.0
+version: 0.6.0
 
 
 results_dir: 'results/'
@@ -54,9 +54,8 @@ Technique:
   offwind: true
 
 ## add components
-add_PHS: False
-add_hydro: False
-add_ror: False
+add_PHS: True
+add_hydro: True
 add_H2_storage: True
 add_battery_storage: True
 add_coal: True
@@ -72,7 +71,7 @@ retroII-fraction: 0.55
 
 heat_coupling: True
 add_heat_pumps: True
-add_boilers: False
+add_boilers: True
 add_chp: True
 chp_parameters:
   eff_el: 0.3978
@@ -155,7 +154,7 @@ electricity:
 
 hydro:
   hydro_capital_cost: False
-  PHS_max_hours: 6.
+  PHS_max_hours: 24.
 
 costs:
   year: 2030
@@ -193,7 +192,7 @@ plotting:
   energy_threshold: 50.
   loads: ['electricity', 'decentral heat', 'central heat']
   vre_techs: [ "onwind", "offwind", "solar"]
-  conv_techs: [ "gas-AC", "coal", "coal-AC","solar thermal","AC-heat","AC-AC"]
+  conv_techs: [ "gas-AC", "coal", "coal-AC","solar thermal","AC-heat","AC-AC","stations-AC"]
   storage_techs: [ "hydro+PHS", "battery", "H2" ]
   load_carriers: [ "AC load" ]
   AC_carriers: [ "AC line", "AC transformer" ]
@@ -207,6 +206,7 @@ plotting:
     'offshore wind ac' : "#6895dd"
     'offwind-dc' : "#74c6f2"
     'offshore wind dc' : "#74c6f2"
+    "stations-AC": "#08ad97"
     "hydro" : "#08ad97"
     "hydro+PHS" : "#08ad97"
     "PHS" : "#08ad97"
@@ -255,6 +255,7 @@ plotting:
     coal-AC: "Combined Heat and Power"
     gas-AC: "Open-Cycle Gas"
     PHS: "Pumped Hydro Storage"
+    stations-AC: "Reservoir & Dam"
     hydro: "Reservoir & Dam"
     battery: "Battery Storage"
     H2: "Hydrogen Storage"
