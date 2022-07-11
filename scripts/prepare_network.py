@@ -265,8 +265,6 @@ def prepare_network(config):
         network.add("Carrier","PHS")
     if config['add_hydro']:
         network.add("Carrier","hydro")
-    if config['add_ror']:
-        network.add("Carrier","ror")
     if config['add_H2_storage']:
         network.add("Carrier","H2")
     if config['add_battery_storage']:
@@ -316,9 +314,10 @@ def prepare_network(config):
                  nodes,
                  suffix=' onwind',
                  bus=nodes,
+                 carrier="onwind",
                  p_nom_extendable=True,
                  p_nom=Onwind_p_nom,
-                 carrier="onwind",
+                 p_nom_min=Onwind_p_nom,
                  p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['onwind','fixed'],
                  marginal_cost=costs.at['onwind','VOM'],
@@ -329,10 +328,11 @@ def prepare_network(config):
     network.madd("Generator",
                  offwind_nodes,
                  suffix=' offwind',
-                 p_nom_extendable=True,
-                 p_nom=Offwind_p_nom,
                  bus=offwind_nodes,
                  carrier="offwind",
+                 p_nom_extendable=True,
+                 p_nom=Offwind_p_nom,
+                 p_nom_min=Offwind_p_nom,
                  p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['offwind','fixed'],
                  p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
@@ -344,10 +344,11 @@ def prepare_network(config):
     network.madd("Generator",
                  nodes,
                  suffix=' solar',
-                 p_nom_extendable=True,
-                 p_nom=Solar_p_nom,
                  bus=nodes,
                  carrier="solar",
+                 p_nom_extendable=True,
+                 p_nom=Solar_p_nom,
+                 p_nom_min=Solar_p_nom,
                  p_nom_max=ds_solar['p_nom_max'].to_pandas(),
                  capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
                  p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
@@ -376,6 +377,7 @@ def prepare_network(config):
                      capital_cost=costs.at[generator,'efficiency']*costs.at[generator,'fixed'], #NB: fixed cost is per MWel
                      p_nom_extendable=False,
                      p_nom=OCGT_p_nom,
+                     p_nom_min=OCGT_p_nom,
                      efficiency=costs.at[generator,'efficiency'])
 
         network.madd("Store",
@@ -394,6 +396,7 @@ def prepare_network(config):
                      suffix=' coal',
                      p_nom_extendable= False,
                      p_nom= coal_p_nom,
+                     p_nom_min=coal_p_nom,
                      bus=nodes,
                      carrier="coal",
                      efficiency=0.45,
@@ -415,7 +418,8 @@ def prepare_network(config):
 
     if config['add_PHS']:
         # pure pumped hydro storage, fixed, 6h energy by default, no inflow
-        phss = hydrocapa_df.index[hydrocapa_df['p_nom_store[GW]'] > 0].intersection(nodes)
+        hydrocapa_df = pd.read_csv('data/hydro/PHS_p_nom.csv', index_col=0)
+        phss = hydrocapa_df.index[hydrocapa_df['MW'] > 0].intersection(nodes)
         if config['hydro']['hydro_capital_cost']:
             cc=costs.at['PHS','fixed']
         else:
@@ -427,7 +431,8 @@ def prepare_network(config):
                      bus=phss,
                      carrier="PHS",
                      p_nom_extendable=False,
-                     p_nom=hydrocapa_df.loc[phss]['p_nom_store[GW]']*1000., #from GW to MW
+                     p_nom=hydrocapa_df.loc[phss]['MW'],
+                     p_nom_min=hydrocapa_df.loc[phss]['MW'],
                      max_hours=config['hydro']['PHS_max_hours'],
                      efficiency_store=np.sqrt(costs.at['PHS','efficiency']),
                      efficiency_dispatch=np.sqrt(costs.at['PHS','efficiency']),
@@ -449,6 +454,7 @@ def prepare_network(config):
 
         water_consumption_factor = dams.loc[:, 'Water_consumption_factor_avg'] * 1e3 # m^3/KWh -> m^3/MWh
 
+
         #######
         # ### Add hydro stations as buses
         network.madd('Bus',
@@ -456,7 +462,7 @@ def prepare_network(config):
             suffix=' station',
             carrier='stations',
             x=dams['geometry'].centroid.x,
-            y=dams['geometry'].centroid.y);
+            y=dams['geometry'].centroid.y)
 
         dam_buses = network.buses[network.buses.carrier=='stations']
 
@@ -464,33 +470,34 @@ def prepare_network(config):
         # ### add hydro reservoirs as stores
 
         initial_capacity = pd.read_pickle('data/hydro/reservoir_initial_capacity.pickle')
-        total_capacity = pd.read_pickle('data/hydro/reservoir_total_capacity.pickle')
         effective_capacity = pd.read_pickle('data/hydro/reservoir_effective_capacity.pickle')
         initial_capacity.index = dams.index
-        total_capacity.index = dams.index
         effective_capacity.index = dams.index
+        initial_capacity = initial_capacity/water_consumption_factor
+        effective_capacity=effective_capacity/water_consumption_factor
+
 
         network.madd('Store',
             dams.index,
             suffix=' reservoir',
             bus=dam_buses.index,
             e_nom=effective_capacity,
-            e_initial=(effective_capacity - (total_capacity - initial_capacity)),
+            e_initial=initial_capacity,
             e_cyclic=True,
-            marginal_cost=0.);
+            marginal_cost=config['costs']['marginal_cost']['hydro'])
 
-        # ### add hydro turbines to link stations to provinces
+        ### add hydro turbines to link stations to provinces
         network.madd('Link',
                     dams.index,
                     suffix=' turbines',
                     bus0=dam_buses.index,
                     bus1=dams['Province'],
-                    p_nom=10 * dams['installed_capacity_10MW'] / (1 / water_consumption_factor),
-                    efficiency= 1 / water_consumption_factor);
+                    p_nom=10 * dams['installed_capacity_10MW'],
+                    efficiency= 1)
         # p_nom * efficiency = 10 * dams['installed_capacity_10MW']
 
 
-        # ### add rivers to link station to station
+        ### add rivers to link station to station
         bus0s = [0, 21, 11, 19, 22, 29, 8, 40, 25, 1, 7, 4, 10, 15, 12, 20, 26, 6, 3, 39]
         bus1s = [5, 11, 19, 22, 32, 8, 40, 25, 35, 2, 4, 10, 9, 12, 20, 23, 6, 17, 14, 16]
 
@@ -500,7 +507,7 @@ def prepare_network(config):
             network.links.at[bus0 + ' turbines', 'bus2'] = bus2
             network.links.at[bus0 + ' turbines', 'efficiency2'] = 1.
 
-        #### spillage
+        ### spillage
         for bus0, bus1 in list(zip(dam_buses.iloc[bus0s].index, dam_buses.iloc[bus1s].index)):
             network.add('Link',
                        "{}-{}".format(bus0,bus1) + ' spillage',
@@ -510,13 +517,13 @@ def prepare_network(config):
 
         dam_ends = [dam for dam in range(len(dams.index)) if (dam in bus1s and dam not in bus0s) or (dam not in bus0s+bus1s)]
 
-        for bus0 in dam_buses.iloc[dam_ends].index:
-            network.add('Link',
-                        bus0 + ' spillage',
-                        bus0=bus0,
-                        bus1='Tibet',
-                        p_nom_extendable=True,
-                        efficiency=0.0)
+        # for bus0 in dam_buses.iloc[dam_ends].index:
+        #     network.add('Link',
+        #                 bus0 + ' spillage',
+        #                 bus0=bus0,
+        #                 bus1='Tibet',
+        #                 p_nom_extendable=True,
+        #                 efficiency=0.0)
 
         #### add inflow as generators
         # only feed into hydro stations which are the first of a cascade
@@ -525,18 +532,18 @@ def prepare_network(config):
         for inflow_station in inflow_stations:
 
             # p_nom = 1 and p_max_pu & p_min_pu = p_pu, compulsory inflow
-            p_nom = inflow.loc[network.snapshots].iloc[:,inflow_station].max()
-            p_pu = inflow.loc[network.snapshots].iloc[:,inflow_station] / p_nom
-
+            p_nom = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station].max()
+            p_pu = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station] / p_nom
+            p_pu.index = network.snapshots
             network.add('Generator',
                        dams.index[inflow_station] + ' inflow',
                        bus=dam_buses.iloc[inflow_station].name,
                        carrier='hydro_inflow',
                        p_max_pu=p_pu.clip(1.e-6),
-                       p_min_pu=p_pu.clip(1.e-6),
+                       # p_min_pu=p_pu.clip(1.e-6),
                        p_nom=p_nom)
-            # p_nom*p_pu = XXX m^3 then use turbines efficiency to convert to power
 
+            # p_nom*p_pu = XXX m^3 then use turbines efficiency to convert to power
 
         # ### add fake hydro just to introduce capital cost
         if config['add_hydro'] and config['hydro']['hydro_capital_cost']:
@@ -553,31 +560,6 @@ def prepare_network(config):
                         capital_cost=hydro_cc)
 
         # else: hydro_cc=0.
-
-
-    if config['add_ror']:
-        rors = ror_share.index[ror_share > 0.]
-        rors = rors.intersection(nodes)
-        rors = rors.intersection(inflow_df.columns)
-        pnom = ror_share[rors]*hydrocapa_df.loc[rors,'p_nom_discharge[GW]']*1000. #GW to MW
-        inflow_pu = inflow_df[rors].multiply(ror_share[rors]/pnom)
-        inflow_pu[inflow_pu>1]=1. #limit inflow per unit to one, i.e, excess inflow is spilled here
-
-        if config['hydro']['hydro_capital_cost']:
-            cc=costs.at['ror','fixed']
-        else:
-            cc=0.
-
-        network.madd("Generator",
-                     rors,
-                     suffix=" ror",
-                     bus=rors,
-                     carrier="ror",
-                     p_nom_extendable=False,
-                     p_nom=pnom,
-                     p_max_pu=inflow_pu,
-                     capital_cost=cc,
-                     marginal_cost=0.)
 
     if config['add_H2_storage']:
 
@@ -896,6 +878,7 @@ def prepare_network(config):
                          p_nom_extendable=False,
                          capital_cost=10000,
                          p_nom=Coal_CHP_p_nom,
+                         p_nom_min=Coal_CHP_p_nom,
                          efficiency=config['chp_parameters']['eff_el'],
                          efficiency2=config['chp_parameters']['eff_th']
                          )
@@ -1041,7 +1024,7 @@ if __name__ == '__main__':
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('prepare_networks', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.1',opts='ll')
+                                   CHP_emission_accounting='dresden', co2_reduction='0.0',opts='ll')
     configure_logging(snakemake)
 
     population = pd.read_hdf(snakemake.input.population_name)

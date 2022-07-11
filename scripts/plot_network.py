@@ -236,7 +236,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('plot_network', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.1', opts='ll', ext="pdf", attr='p_nom')
+                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll', ext="pdf", attr='p_nom')
     configure_logging(snakemake)
 
     set_plot_style()
