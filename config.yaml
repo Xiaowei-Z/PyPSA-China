@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
-version: 0.6.0
+version: 0.1.0
 
 
 results_dir: 'results/'
@@ -12,7 +12,8 @@ scenario:
   line_limits: [ 'opt' ]
   CHP_emission_accounting: [ 'dresden' ]
   co2_reduction: 0.0
-  opt: ['ll']
+  opts: ['ll']
+  attr: 'p_nom'
 
 load_year: 2020
 tmin: '2020-01-01 00:00'
@@ -175,7 +176,7 @@ costs:
 
 plotting:
   map:
-    figsize: [7, 7]
+    figsize: [8, 8]
     boundaries: [60, 135., 15, 60.]
     p_nom:
       bus_size_factor: 5.e+4
@@ -184,11 +185,11 @@ plotting:
       bus_size_factor_heat: 5.e+4
       linewidth_factor_heat: 5.e+4
 
-  costs_max: 10
+  costs_max: 1600
   costs_threshold: 1
 
-  energy_max: 24000.
-  energy_min: -24000.
+  energy_max: 18000.
+  energy_min: 0.
   energy_threshold: 50.
   loads: ['electricity', 'decentral heat', 'central heat']
   vre_techs: [ "onwind", "offwind", "solar"]
@@ -208,9 +209,11 @@ plotting:
     'offshore wind dc' : "#74c6f2"
     "stations-AC": "#08ad97"
     "hydro" : "#08ad97"
+    "stations" : "#08ad97"
     "hydro+PHS" : "#08ad97"
     "PHS" : "#08ad97"
     "hydro reservoir" : "#08ad97"
+    "hydro_inflow" : "#08ad97"
     'hydroelectricity' : '#08ad97'
     "ror" : "#4adbc8"
     "run of river" : "#4adbc8"
@@ -226,6 +229,7 @@ plotting:
     "gas-AC" : "#d35050"
     "gas" : "#d35050"
     "AC-heat" : "#b20101"
+    "heat pump": "#b20101"
     "nuclear" : "#ff9000"
     "coal" : "#707070"
     "coal-AC" : "#262626"
@@ -233,13 +237,16 @@ plotting:
     "H2" : "#ea048a"
     "hydrogen storage" : "#ea048a"
     "battery" : "#b8ea04"
+    "battery storage" : "#b8ea04"
     "Electric load" : "#f9d002"
     "electricity" : "#f9d002"
     "central heat" : "#b8ea04"
     "decentral heat" : "#707070"
+    "water tanks" : "#707070"
     "lines" : "#70af1d"
     "transmission lines" : "#70af1d"
     "AC-AC" : "#70af1d"
+    "AC": "#70af1d"
     "AC line" : "#70af1d"
     "links" : "#8a1caf"
     "HVDC links" : "#8a1caf"
@@ -262,6 +269,7 @@ plotting:
     lines: "Transmission Lines"
     ror: "Run of River"
     AC-heat: "Heat Pump"
+    heat pump: "Heat Pump"
     solar thermal: "Solar Thermal"
     energy:
       coal: "Coal"

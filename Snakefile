@@ -23,15 +23,24 @@ wildcard_constraints:
 
 rule prepare_all_networks:
     input:
-        expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opt}.nc',
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
             version=config['version'],
             **config['scenario'])
 
 rule solve_all_networks:
     input:
-        expand(config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opt}.nc',
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
             version=config['version'],
             **config['scenario'])
+
+rule plot_all:
+    input:
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_costs.png',
+            version=config['version'],
+            **config['scenario']),
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.pdf',
+           version=config['version'],
+           ** config['scenario'])
 
 rule build_p_nom:
     output:
@@ -202,9 +211,9 @@ rule plot_network:
         network=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
         tech_costs=COSTS
     output:
-        only_map=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.{ext}',
-        ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.{ext}'
-    log: "logs/plot_network/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_{ext}.log"
+        only_map=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.pdf',
+        ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.pdf'
+    log: "logs/plot_network/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log"
     script: "scripts/plot_network.py"
 
 rule make_summary:
@@ -212,7 +221,18 @@ rule make_summary:
         network=config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
         tech_costs=COSTS,
     output:
-        summary=config['results_dir'] + 'version-' + str(config['version']) + '/summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.csv',
+        directory(config['results_dir'] + 'version-' + str(config['version']) + '/summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}'),
     log: "logs/make_summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log"
+    resources: mem_mb=5000
     script: "scripts/make_summary.py"
+
+rule plot_summary:
+    input:
+        config['results_dir'] + 'version-' + str(config['version']) + '/summary/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}'
+    output:
+        energy = config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_energy.png',
+        cost = config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_costs.png'
+    log: "logs/plot/summary/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log"
+    script: "scripts/plot_summary.py"
+
 
