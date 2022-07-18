@@ -67,12 +67,12 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
 
     if attribute == 'p_nom':
         # bus_sizes = n.generators_t.p.sum().loc[n.generators.carrier == "load"].groupby(n.generators.bus).sum()
-        bus_sizes = pd.concat((n.generators.query('carrier != "solar thermal"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
-                               n.links.query('carrier == ["gas-AC","coal-AC"]').groupby(['bus1', 'carrier']).p_nom_opt.sum()))
+        bus_sizes = pd.concat((n.generators.query('carrier != "solar thermal"' and 'carrier != "hydro_inflow"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
+                               n.links.query('carrier == ["gas-AC","coal-AC","stations-AC"]').groupby(['bus1', 'carrier']).p_nom_opt.sum()))
         bus_sizes = bus_sizes.groupby(['bus','carrier']).sum()
         line_widths_exp = n.lines.s_nom_opt
         line_widths_cur = n.lines.s_nom_min
-        link_widths_exp = n.links.p_nom_opt
+        link_widths_exp = n.links.query('carrier == ["AC-AC"]').p_nom_opt.append(n.links.query('carrier != ["AC-AC"]').p_min_pu)
         link_widths_cur = n.links.p_nom_min
     else:
         raise 'plotting of {} has not been implemented yet'.format(attribute)
@@ -192,7 +192,11 @@ def plot_total_cost_bar(n, opts, ax=None):
 
     def split_costs(n):
         costs = aggregate_costs(n).reset_index(level=0, drop=True)
+        costs.index.rename(['cost','carrier'],inplace=True)
+        costs = costs.groupby(['cost','carrier']).sum()
         costs_ex = aggregate_costs(n, existing_only=True).reset_index(level=0, drop=True)
+        costs_ex.index.rename(['cost','carrier'],inplace=True)
+        costs_ex = costs_ex.groupby(['cost','carrier']).sum()
         return (costs['capital'].add(costs['marginal'], fill_value=0.),
                 costs_ex['capital'], costs['capital'] - costs_ex['capital'], costs['marginal'])
 
@@ -236,7 +240,7 @@ if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
         snakemake = mock_snakemake('plot_network', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll', ext="pdf", attr='p_nom')
+                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll')
     configure_logging(snakemake)
 
     set_plot_style()
@@ -251,7 +255,7 @@ if __name__ == "__main__":
     scenario_opts = wildcards.opts.split('-')
 
     fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
-    plot_opt_map(n, config["plotting"], ax=ax, attribute=wildcards.attr)
+    plot_opt_map(n, config["plotting"], ax=ax, attribute=config["scenario"]["attr"])
 
     fig.savefig(snakemake.output.only_map, dpi=150, bbox_inches='tight')
 
@@ -260,13 +264,5 @@ if __name__ == "__main__":
 
     ax2 = fig.add_axes([-0.075, 0.1, 0.1, 0.45])
     plot_total_cost_bar(n, config["plotting"], ax=ax2)
-
-    ll = wildcards.ll
-    ll_type = ll[0]
-    ll_factor = ll[1:]
-    lbl = dict(c='line cost', v='line volume')[ll_type]
-    amnt = '{ll} x today\'s'.format(ll=ll_factor) if ll_factor != 'opt' else 'optimal'
-    fig.suptitle('Expansion to {amount} {label} at {clusters} clusters'
-                .format(amount=amnt, label=lbl, clusters=wildcards.clusters))
 
     fig.savefig(snakemake.output.ext, transparent=True, bbox_inches='tight')

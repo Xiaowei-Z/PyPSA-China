@@ -330,9 +330,9 @@ outputs = ["costs",
            ]
 
 
-def make_summaries(networks_dict, paths, config, country='all'):
+def make_summaries(networks_dict, paths, config):
 
-    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["simpl","clusters","ll","opts"])
+    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["flexibility","line_limits","CHP_emission_accounting","co2_reductions","opts"])
 
     dfs = {}
 
@@ -351,11 +351,8 @@ def make_summaries(networks_dict, paths, config, country='all'):
             logger.warning("Skipping {filename}".format(filename=filename))
             continue
 
-        if country != 'all':
-            n = n[n.buses.country == country]
-
         Nyears = n.snapshot_weightings.objective.sum() / 8760.
-        costs = load_costs(paths[0], config['costs'], config['electricity'], Nyears)
+        costs = load_costs(paths[1], config['costs'], config['electricity'], Nyears)
         update_transmission_costs(n, costs)
 
         assign_carriers(n)
@@ -375,35 +372,28 @@ def to_csv(dfs, dir):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('make_summary', network='elec', simpl='',
-                           clusters='5', ll='copt', opts='Co2L-24H', country='all')
-        network_dir = os.path.join('..', 'results', 'networks')
-    else:
-        network_dir = os.path.join('results', 'networks')
+        snakemake = mock_snakemake('make_summary', flexibility='seperate_co2_reduction', line_limits='opt',
+                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll', attr='p_nom')
     configure_logging(snakemake)
 
     config = snakemake.config
     wildcards = snakemake.wildcards
 
+    network_dir = os.path.join(config['results_dir'], 'version-' + str(config['version']), 'postnetworks')
+
     def expand_from_wildcard(key, config):
         w = getattr(wildcards, key)
         return config["scenario"][key] if w == "all" else [w]
 
-    if wildcards.ll.endswith("all"):
-        ll = config["scenario"]["ll"]
-        if len(wildcards.ll) == 4:
-            ll = [l for l in ll if l[0] == wildcards.ll[0]]
-    else:
-        ll = [wildcards.ll]
-
-    networks_dict = {(simpl,clusters,l,opts) :
-        os.path.join(network_dir, f'elec_s{simpl}_'
-                                  f'{clusters}_ec_l{l}_{opts}.nc')
-                     for simpl in expand_from_wildcard("simpl", config)
-                     for clusters in expand_from_wildcard("clusters", config)
-                     for l in ll
+    networks_dict = {(flexibility,line_limits,CHP_emission_accounting,co2_reduction,opts) :
+        os.path.join(network_dir, f'postnetwork-{flexibility}-'
+                                  f'{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc')
+                     for flexibility in expand_from_wildcard("flexibility", config)
+                     for line_limits in expand_from_wildcard("line_limits", config)
+                     for CHP_emission_accounting in expand_from_wildcard("CHP_emission_accounting", config)
+                     for co2_reduction in expand_from_wildcard("co2_reduction", config)
                      for opts in expand_from_wildcard("opts", config)}
 
-    dfs = make_summaries(networks_dict, snakemake.input, config, country=wildcards.country)
+    dfs = make_summaries(networks_dict, snakemake.input, config)
 
     to_csv(dfs, snakemake.output[0])

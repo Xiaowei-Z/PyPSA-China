@@ -281,7 +281,7 @@ def prepare_network(config):
 
         if config['scenario']['co2_reduction'] is not None:
 
-            co2_limit = 5.43*1e9
+            co2_limit = 5.59*1e9
 
             # if config["transport_coupling"]:
             #     co2_limit += co2_totals['transport']
@@ -692,6 +692,7 @@ def prepare_network(config):
                              suffix=cat + "heat pump",
                              bus0=nodes,
                              bus1=nodes + cat + "heat",
+                             carrier='heat pump',
                              efficiency=ashp_cop[nodes] if config["time_dep_hp_cop"] else costs.at[cat.lstrip()+"air-sourced heat pump",'efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','investment'],
                              p_nom_extendable=True)
@@ -701,6 +702,7 @@ def prepare_network(config):
                          suffix=" ground heat pump",
                          bus0=nodes,
                          bus1=nodes + " decentral heat",
+                         carrier='heat pump',
                          efficiency=gshp_cop[nodes] if config["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
                          capital_cost=costs.at['decentral ground-sourced heat pump','investment'],
                          p_nom_extendable=True)
@@ -775,6 +777,7 @@ def prepare_network(config):
                              nodes + cat + "water tanks charger",
                              bus0=nodes + cat + "heat",
                              bus1=nodes + cat + "water tanks",
+                             carrier="water tanks",
                              efficiency=costs.at['water tank charger','efficiency'],
                              p_nom_extendable=True)
 
@@ -782,12 +785,14 @@ def prepare_network(config):
                              nodes + cat + "water tanks discharger",
                              bus0=nodes + cat + "water tanks",
                              bus1=nodes + cat + "heat",
+                             carrier="water tanks",
                              efficiency=costs.at['water tank discharger','efficiency'],
                              p_nom_extendable=True)
 
                 network.madd("Store",
                              nodes + cat + "water tank",
                              bus=nodes + cat + "water tanks",
+                             carrier="water tanks",
                              e_cyclic=True,
                              e_nom_extendable=True,
                              standing_loss=1-np.exp(-1/(24.* (config["tes_tau"] if cat==' decentral ' else 180.))),  # [HP] 180 day time constant for centralised, 3 day for decentralised

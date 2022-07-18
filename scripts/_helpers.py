@@ -173,3 +173,4 @@ def update_p_nom_max(n):
     # Hence, we update the assumptions.
 
     n.generators.p_nom_max = n.generators[['p_nom_min', 'p_nom_max']].max(1)
+
