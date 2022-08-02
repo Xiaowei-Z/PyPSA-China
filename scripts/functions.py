@@ -13,6 +13,10 @@ pro_names = np.array(['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guang
        'Yunnan', 'Zhejiang'],
       dtype=str)
 
+offwind_nodes = np.array(['Fujian', 'Guangdong', 'Guangxi', 'Hainan', 'Hebei', 'Jiangsu',
+       'Liaoning', 'Shandong', 'Shanghai', 'Tianjin', 'Zhejiang'],
+      dtype=str)
+
 def HVAC_cost_curve(distance):
 
   d = np.array([608, 656, 730, 780, 903, 920, 1300])

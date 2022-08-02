@@ -2,9 +2,37 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
-
+import os
 import pandas as pd
 from pathlib import Path
+from types import SimpleNamespace
+from pypsa.descriptors import Dict
+from pypsa.components import components, component_attrs
+
+def override_component_attrs(directory):
+    """Tell PyPSA that links can have multiple outputs by
+    overriding the component_attrs. This can be done for
+    as many buses as you need with format busi for i = 2,3,4,5,....
+    See https://pypsa.org/doc/components.html#link-with-multiple-outputs-or-inputs
+    Parameters
+    ----------
+    directory : string
+        Folder where component attributes to override are stored
+        analogous to ``pypsa/component_attrs``, e.g. `links.csv`.
+    Returns
+    -------
+    Dictionary of overriden component attributes.
+    """
+
+    attrs = Dict({k : v.copy() for k,v in component_attrs.items()})
+
+    for component, list_name in components.list_name.items():
+        fn = f"{directory}/{list_name}.csv"
+        if os.path.isfile(fn):
+            overrides = pd.read_csv(fn, index_col=0, na_values="n/a")
+            attrs[component] = overrides.combine_first(attrs[component])
+
+    return attrs
 
 def configure_logging(snakemake, skip_handlers=False):
     """
@@ -173,4 +201,91 @@ def update_p_nom_max(n):
     # Hence, we update the assumptions.
 
     n.generators.p_nom_max = n.generators[['p_nom_min', 'p_nom_max']].max(1)
+
+def define_spatial(nodes, options):
+    """
+    Namespace for spatial
+    Parameters
+    ----------
+    nodes : list-like
+    """
+
+    spatial = SimpleNamespace()
+
+    spatial.nodes = nodes
+
+    # biomass
+
+    spatial.biomass = SimpleNamespace()
+
+    if options["biomass_transport"]:
+        spatial.biomass.nodes = nodes + " solid biomass"
+        spatial.biomass.locations = nodes
+        spatial.biomass.industry = nodes + " solid biomass for industry"
+        spatial.biomass.industry_cc = nodes + " solid biomass for industry CC"
+    else:
+        spatial.biomass.nodes = ["China solid biomass"]
+        spatial.biomass.locations = ["China"]
+        spatial.biomass.industry = ["solid biomass for industry"]
+        spatial.biomass.industry_cc = ["solid biomass for industry CC"]
+
+    spatial.biomass.df = pd.DataFrame(vars(spatial.biomass), index=nodes)
+
+    # co2
+
+    spatial.co2 = SimpleNamespace()
+
+    if options["co2_network"]:
+        spatial.co2.nodes = nodes + " co2 stored"
+        spatial.co2.locations = nodes
+        spatial.co2.vents = nodes + " co2 vent"
+    else:
+        spatial.co2.nodes = ["co2 stored"]
+        spatial.co2.locations = ["China"]
+        spatial.co2.vents = ["co2 vent"]
+
+    spatial.co2.df = pd.DataFrame(vars(spatial.co2), index=nodes)
+
+    # gas
+
+    spatial.gas = SimpleNamespace()
+
+    if options["gas_network"]:
+        spatial.gas.nodes = nodes + " gas"
+        spatial.gas.locations = nodes
+        spatial.gas.biogas = nodes + " biogas"
+        spatial.gas.industry = nodes + " gas for industry"
+        spatial.gas.industry_cc = nodes + " gas for industry CC"
+        spatial.gas.biogas_to_gas = nodes + " biogas to gas"
+    else:
+        spatial.gas.nodes = ["China gas"]
+        spatial.gas.locations = ["China"]
+        spatial.gas.biogas = ["China biogas"]
+        spatial.gas.industry = ["gas for industry"]
+        spatial.gas.industry_cc = ["gas for industry CC"]
+        spatial.gas.biogas_to_gas = ["China biogas to gas"]
+
+    spatial.gas.df = pd.DataFrame(vars(spatial.gas), index=nodes)
+
+    # oil
+    spatial.oil = SimpleNamespace()
+    spatial.oil.nodes = ["China oil"]
+    spatial.oil.locations = ["China"]
+
+    # uranium
+    spatial.uranium = SimpleNamespace()
+    spatial.uranium.nodes = ["China uranium"]
+    spatial.uranium.locations = ["China"]
+
+    # coal
+    spatial.coal = SimpleNamespace()
+    spatial.coal.nodes = ["China coal"]
+    spatial.coal.locations = ["China"]
+
+    # lignite
+    spatial.lignite = SimpleNamespace()
+    spatial.lignite.nodes = ["China lignite"]
+    spatial.lignite.locations = ["China"]
+
+    return spatial
 

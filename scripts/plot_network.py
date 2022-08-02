@@ -66,7 +66,6 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
     tech_colors = opts['tech_colors']
 
     if attribute == 'p_nom':
-        # bus_sizes = n.generators_t.p.sum().loc[n.generators.carrier == "load"].groupby(n.generators.bus).sum()
         bus_sizes = pd.concat((n.generators.query('carrier != "solar thermal"' and 'carrier != "hydro_inflow"').groupby(['bus', 'carrier']).p_nom_opt.sum(),
                                n.links.query('carrier == ["gas-AC","coal-AC","stations-AC"]').groupby(['bus1', 'carrier']).p_nom_opt.sum()))
         bus_sizes = bus_sizes.groupby(['bus','carrier']).sum()
