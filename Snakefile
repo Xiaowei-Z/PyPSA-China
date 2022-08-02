@@ -15,31 +15,34 @@ configfile: "config.yaml"
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
 
-wildcard_constraints:
-    simpl="[a-zA-Z0-9]*|all",
-    clusters="[0-9]+m?|all",
-    ll="(v|c)([0-9\.]+|opt|all)|all",
-    opts="[-+a-zA-Z0-9\.]*"
+# wildcard_constraints:
+#     flexibility="[a-zA-Z0-9]*|all",
+#     line_limits="[a-zA-Z0-9]*|all",
+#     CHP_emission_accounting="[a-zA-Z0-9]*|all",
+#     co2_reduction="[0-9]+m?|all",
+#     ll="(v|c)([0-9\.]+|opt|all)|all",
+#     opts="[-+a-zA-Z0-9\.]*"
 
 rule prepare_all_networks:
     input:
         expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
-            version=config['version'],
             **config['scenario'])
 
 rule solve_all_networks:
     input:
         expand(config['results_dir'] + 'version-' + str(config['version']) + '/postnetworks/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
-            version=config['version'],
             **config['scenario'])
 
 rule plot_all:
     input:
         expand(config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_costs.png',
-            version=config['version'],
             **config['scenario']),
         expand(config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}_ext.pdf',
-           version=config['version'],
+           ** config['scenario'])
+
+rule myopic:
+    input:
+        expand(config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}-{planning_horizons}.nc',
            ** config['scenario'])
 
 rule build_p_nom:
@@ -178,12 +181,13 @@ rule build_renewable_potential:
     resources: mem_mb=ATLITE_NPROCESSES * 5000
     script: "scripts/build_renewable_potential.py"
 
+
 rule prepare_networks:
     input:
         population_name="data/population/population.h5",
         solar_thermal_name="data/heating/solar_thermal-{angle}.h5".format(angle=config['solar_thermal_angle']),
-    	heat_demand_name="data/heating/daily_heat_demand.h5",
-    	cop_name="data/heating/cop.h5",
+        heat_demand_name="data/heating/daily_heat_demand.h5",
+        cop_name="data/heating/cop.h5",
         energy_totals_name="data/energy_totals2020.h5",
         co2_totals_name="data/co2_totals.h5",
         temp="data/heating/temp.h5",
@@ -235,4 +239,22 @@ rule plot_summary:
     log: "logs/plot/summary/postnetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.log"
     script: "scripts/plot_summary.py"
 
+if config["foresight"] == "myopic":
+
+    rule add_existing_baseyear:
+        input:
+            overrides="data/override_component_attrs",
+            network=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc',
+            costs=COSTS,
+            existing_coal='data/existing_infrastructure/coal_capacity.csv',
+            existing_CHP='data/existing_infrastructure/CHP_capacity.csv',
+            existing_solar='data/existing_infrastructure/solar_capacity.csv',
+            existing_onwind='data/existing_infrastructure/onwind_capacity.csv',
+            existing_offwind='data/existing_infrastructure/offwind_capacity.csv',
+        output: config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{flexibility}-{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}-{planning_horizons}.nc'
+        wildcard_constraints:
+            planning_horizons=config['scenario']['planning_horizons'] #only applies to baseyear
+        threads: 1
+        resources: mem_mb=2000
+        script: "scripts/add_existing_baseyear.py"
 
