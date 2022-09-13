@@ -101,14 +101,6 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
 
     df.fillna(0)
 
-    carrier = {
-        "coal": "coal",
-        "CHP": "coal",
-        "solar": "solar",
-        "onwind": "onwind",
-        "offwind": "offwind"
-    }
-
     for grouping_year, generator in df.index:
 
         # capacity is the capacity in MW at each node for this
@@ -184,8 +176,7 @@ if __name__ == "__main__":
         from _helpers import mock_snakemake
         snakemake = mock_snakemake(
             'add_existing_baseyear',
-            flexibility='seperate_co2_reduction', line_limits='opt',
-            CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll',
+            co2_reduction='0.0',
             planning_horizons=2020
         )
 

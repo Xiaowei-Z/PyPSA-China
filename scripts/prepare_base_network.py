@@ -309,51 +309,41 @@ def prepare_network(config):
     network.madd("Load", nodes, bus=nodes, p_set=load[nodes])
 
     #add renewables
-    # Onwind_p_nom = pd.read_hdf('data/p_nom/onwind_p_nom.h5')
-    # network.madd("Generator",
-    #              nodes,
-    #              suffix=' onwind',
-    #              bus=nodes,
-    #              carrier="onwind",
-    #              p_nom_extendable=True,
-    #              p_nom=Onwind_p_nom,
-    #              p_nom_min=Onwind_p_nom,
-    #              p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
-    #              capital_cost = costs.at['onwind','fixed'],
-    #              marginal_cost=costs.at['onwind','VOM'],
-    #              p_max_pu=ds_onwind['profile'].transpose('time','bus').to_pandas())
+    network.madd("Generator",
+                 nodes,
+                 suffix=' onwind',
+                 bus=nodes,
+                 carrier="onwind",
+                 p_nom_extendable=True,
+                 p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
+                 capital_cost = costs.at['onwind','fixed'],
+                 marginal_cost=costs.at['onwind','VOM'],
+                 p_max_pu=ds_onwind['profile'].transpose('time','bus').to_pandas())
 
-    # offwind_nodes = ds_offwind['bus'].to_pandas().index
-    # Offwind_p_nom = pd.read_hdf('data/p_nom/offwind_p_nom.h5')
-    # network.madd("Generator",
-    #              offwind_nodes,
-    #              suffix=' offwind',
-    #              bus=offwind_nodes,
-    #              carrier="offwind",
-    #              p_nom_extendable=True,
-    #              p_nom=Offwind_p_nom,
-    #              p_nom_min=Offwind_p_nom,
-    #              p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
-    #              capital_cost = costs.at['offwind','fixed'],
-    #              p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
-    #              marginal_cost=costs.at['offwind','VOM']
-    #              )
-    
-    # Solar_p_nom = pd.read_hdf('data/p_nom/solar_p_nom.h5')
-    #
-    # network.madd("Generator",
-    #              nodes,
-    #              suffix=' solar',
-    #              bus=nodes,
-    #              carrier="solar",
-    #              p_nom_extendable=True,
-    #              p_nom=Solar_p_nom,
-    #              p_nom_min=Solar_p_nom,
-    #              p_nom_max=ds_solar['p_nom_max'].to_pandas(),
-    #              capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
-    #              p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
-    #              marginal_cost=costs.at['solar','VOM']
-    #              )
+    offwind_nodes = ds_offwind['bus'].to_pandas().index
+    network.madd("Generator",
+                 offwind_nodes,
+                 suffix=' offwind',
+                 bus=offwind_nodes,
+                 carrier="offwind",
+                 p_nom_extendable=True,
+                 p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
+                 capital_cost = costs.at['offwind','fixed'],
+                 p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
+                 marginal_cost=costs.at['offwind','VOM']
+                 )
+
+    network.madd("Generator",
+                 nodes,
+                 suffix=' solar',
+                 bus=nodes,
+                 carrier="solar",
+                 p_nom_extendable=True,
+                 p_nom_max=ds_solar['p_nom_max'].to_pandas(),
+                 capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
+                 p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
+                 marginal_cost=costs.at['solar','VOM']
+                 )
 
     #add conventionals
     if config['add_OCGT']:
@@ -386,22 +376,6 @@ def prepare_network(config):
                      e_nom_extendable=True,
                      e_min_pu=-1.,
                      marginal_cost=costs.at["gas",'fuel'])
-        
-       
-    # if config['add_coal']:
-    #       network.add("Carrier","coal",co2_emissions=costs.at['coal','CO2 intensity'])
-    #       coal_p_nom = pd.read_hdf('data/p_nom/Coal_p_nom.h5')
-    #       network.madd("Generator",
-    #                  nodes,
-    #                  suffix=' coal',
-    #                  p_nom_extendable= False,
-    #                  p_nom=coal_p_nom,
-    #                  p_nom_min=coal_p_nom,
-    #                  bus=nodes,
-    #                  carrier="coal",
-    #                  efficiency=0.45,
-    #                  marginal_cost=costs.at['coal','fuel'])
-    
 
     if config['add_nuclear']:
         network.add("Carrier","uranium")
@@ -811,20 +785,6 @@ def prepare_network(config):
                              capital_cost=costs.at[cat.lstrip()+'resistive heater','efficiency']*costs.at[cat.lstrip()+'resistive heater','fixed'],
                              p_nom_extendable=True)
 
-                # network.madd("Bus",
-                #              nodes,
-                #              suffix=cat + "gas",
-                #              x=pro_shapes['geometry'].centroid.x,
-                #              y=pro_shapes['geometry'].centroid.y,
-                #              carrier='gas')
-
-                # network.madd("Store",
-                #              nodes + cat + "gas Store",
-                #              bus=nodes + cat + "gas",
-                #              e_nom_extendable=True,
-                #              e_min_pu=-1.,
-                #              marginal_cost=costs.at['gas','fuel'])
-
                 network.madd("Link",
                              nodes + cat + "gas boiler",
                              p_nom_extendable=True,
@@ -834,20 +794,6 @@ def prepare_network(config):
                              capital_cost=costs.at[cat.lstrip()+'gas boiler','efficiency']*costs.at[cat.lstrip()+'gas boiler','fixed'])
 
         if config["add_chp"]:
-            
-            # network.madd("Bus",
-            #              nodes,
-            #              suffix=' CHPgas',
-            #              x=pro_shapes['geometry'].centroid.x,
-            #              y=pro_shapes['geometry'].centroid.y,
-            #              carrier='gas')
-            #
-            # network.madd("Store",
-            #              nodes + " CHPgas Store",
-            #              bus=nodes + " CHPgas",
-            #              e_nom_extendable=True,
-            #              e_min_pu=-1.,
-            #              marginal_cost=costs.at['gas','fuel'])
 
             network.madd("Link",
                          nodes,
@@ -859,36 +805,6 @@ def prepare_network(config):
                          capital_cost=costs.at['central CHP','fixed'],
                          efficiency=config['chp_parameters']['eff_el'],
                          efficiency2=config['chp_parameters']['eff_th'])
-            
-            Coal_CHP_p_nom = pd.read_hdf('data/p_nom/CHP_p_nom.h5')
-            
-            network.madd("Bus",
-                         nodes,
-                         suffix=' CHP coal',
-                         x=pro_shapes['geometry'].centroid.x,
-                         y=pro_shapes['geometry'].centroid.y,
-                         carrier='coal')
-
-            network.madd("Store",
-                         nodes + " CHP coal Store",
-                         bus=nodes + " CHP coal",
-                         e_nom_extendable=True,
-                         e_min_pu=-1.,
-                         marginal_cost=costs.at['coal','fuel'])
-
-            # network.madd("Link",
-            #              nodes,
-            #              suffix=" CHP coal",
-            #              bus0=nodes + " CHP coal",
-            #              bus1=nodes,
-            #              bus2=nodes + " central heat",
-            #              p_nom_extendable=False,
-            #              capital_cost=10000,
-            #              p_nom=Coal_CHP_p_nom,
-            #              p_nom_min=Coal_CHP_p_nom,
-            #              efficiency=config['chp_parameters']['eff_el'],
-            #              efficiency2=config['chp_parameters']['eff_th']
-            #              )
 
         if config["add_solar_thermal"]:
 
