@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
-version: 0.3.0
+version: 0.2.3
 logging_level: INFO
 foresight: "myopic"
 
@@ -12,12 +12,17 @@ scenario:
   flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
   CHP_emission_accounting: [ 'dresden' ]
-  co2_reduction: 0.0
+  co2_reduction: 1.0
   opts: ['ll']
   attr: 'p_nom'
   planning_horizons:
     - 2020
-
+    - 2025
+    - 2030
+    - 2035
+    - 2040
+    - 2045
+    - 2050
 
 load_year: 2020
 tmin: '2020-01-01 00:00'
