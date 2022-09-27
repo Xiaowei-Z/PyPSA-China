@@ -124,7 +124,7 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        carrier=generator,
                        p_nom=capacity,
                        p_nom_min=capacity,
-                       p_nom_extendable=True,
+                       p_nom_extendable=False,
                        marginal_cost=costs.at[generator, 'VOM'],
                        capital_cost=capital_cost,
                        efficiency=costs.at[generator, 'efficiency'],
@@ -177,22 +177,23 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             'add_existing_baseyear',
             co2_reduction='0.0',
+            opts ='ll',
             planning_horizons=2020
         )
 
     logging.basicConfig(level=snakemake.config['logging']['level'])
 
     options = snakemake.config["sector"]
-    sector_opts = '168H-T-H-B-I-solar+p3-dist1'
-    opts = sector_opts.split('-')
+    # sector_opts = '168H-T-H-B-I-solar+p3-dist1'
+    # opts = sector_opts.split('-')
 
-    baseyear = snakemake.config['scenario']["planning_horizons"]
+    baseyear = snakemake.config['scenario']["planning_horizons"][0]
 
     overrides = override_component_attrs(snakemake.input.overrides)
     n = pypsa.Network(snakemake.input.network, override_component_attrs=overrides)
     # define spatial resolution of carriers
     spatial = define_spatial(n.buses[n.buses.carrier=="AC"].index, options)
-    add_build_year_to_new_assets(n, baseyear)
+    # add_build_year_to_new_assets(n, baseyear)
 
     Nyears = n.snapshot_weightings.generators.sum() / 8760.
     costs = prepare_costs(Nyears, snakemake.config)

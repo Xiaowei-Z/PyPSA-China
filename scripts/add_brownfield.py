@@ -26,6 +26,10 @@ def add_brownfield(n, n_p, year):
     dc_i = n.links[n.links.carrier=="DC"].index
     n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
 
+    assets = n.generators.index[n.generators.p_nom_max != np.inf]
+    assets_p = n_p.generators.index[n_p.generators.p_nom_max != np.inf]
+    n.generators.loc[assets, "p_nom_max"] = n.generators.loc[assets, "p_nom_max"].values - n_p.generators.loc[assets_p, "p_nom_opt"].values
+
     for c in n_p.iterate_components(["Link", "Generator", "Store"]):
 
         attr = "e" if c.name == "Store" else "p"
@@ -73,6 +77,7 @@ def add_brownfield(n, n_p, year):
         # copy over assets but fix their capacity
         c.df[attr + "_nom"] = c.df[attr + "_nom_opt"]
         c.df[attr + "_nom_extendable"] = False
+        c.df[attr + "_nom_max"] = np.inf
 
         n.import_components_from_dataframe(c.df, c.name)
 
@@ -117,8 +122,9 @@ if __name__ == "__main__":
         from _helpers import mock_snakemake
         snakemake = mock_snakemake(
             'add_brownfield',
-            co2_reduction='0.0',
-            planning_horizons=2020
+            co2_reduction='1.0',
+            opts='ll',
+            planning_horizons=2030
         )
 
     print(snakemake.input.network_p)

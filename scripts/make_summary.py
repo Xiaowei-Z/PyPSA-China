@@ -332,7 +332,7 @@ outputs = ["costs",
 
 def make_summaries(networks_dict, paths, config):
 
-    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["flexibility","line_limits","CHP_emission_accounting","co2_reductions","opts"])
+    columns = pd.MultiIndex.from_tuples(networks_dict.keys(),names=["co2_reductions","opts", "planning_horizons"])
 
     dfs = {}
 
@@ -385,14 +385,11 @@ if __name__ == "__main__":
         w = getattr(wildcards, key)
         return config["scenario"][key] if w == "all" else [w]
 
-    networks_dict = {(flexibility,line_limits,CHP_emission_accounting,co2_reduction,opts) :
-        os.path.join(network_dir, f'postnetwork-{flexibility}-'
-                                  f'{line_limits}-{co2_reduction}-{CHP_emission_accounting}-{opts}.nc')
-                     for flexibility in expand_from_wildcard("flexibility", config)
-                     for line_limits in expand_from_wildcard("line_limits", config)
-                     for CHP_emission_accounting in expand_from_wildcard("CHP_emission_accounting", config)
+    networks_dict = {(co2_reduction,opts,planning_horizons):
+        os.path.join(network_dir, f'postnetwork-{co2_reduction}-{opts}-{planning_horizons}.nc')
                      for co2_reduction in expand_from_wildcard("co2_reduction", config)
-                     for opts in expand_from_wildcard("opts", config)}
+                     for opts in expand_from_wildcard("opts", config)
+                     for planning_horizons in expand_from_wildcard("planning_horizons", config)}
 
     dfs = make_summaries(networks_dict, snakemake.input, config)
 
