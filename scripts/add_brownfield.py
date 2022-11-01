@@ -12,6 +12,7 @@ import numpy as np
 
 from add_existing_baseyear import add_build_year_to_new_assets
 from _helpers import override_component_attrs
+from functions import pro_names, offwind_nodes
 
 
 def basename(x):
@@ -19,16 +20,35 @@ def basename(x):
 
 def add_brownfield(n, n_p, year):
 
+    # first year
+    if year == 2025:
+            n_update = n_p.generators[(n_p.generators.build_year == 0) &
+                                      (n_p.generators.p_nom_opt >= 10) &
+                                      (n_p.generators.lifetime != np.inf)]
+            baseyear = 2020
+            rename = pd.Series(n_update.index, n_update.index)
+            rename += "-" + str(baseyear)
+            n_update.rename(index=rename, inplace=True)
+
     print("adding brownfield")
 
     # electric transmission grid set optimised capacities of previous as minimum
     n.lines.s_nom_min = n_p.lines.s_nom_opt
-    dc_i = n.links[n.links.carrier=="DC"].index
-    n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
+    # dc_i = n.links[n.links.carrier=="DC"].index
+    # n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
 
-    assets = n.generators.index[n.generators.p_nom_max != np.inf]
-    assets_p = n_p.generators.index[n_p.generators.p_nom_max != np.inf]
-    n.generators.loc[assets, "p_nom_max"] = n.generators.loc[assets, "p_nom_max"].values - n_p.generators.loc[assets_p, "p_nom_opt"].values
+    for tech in ['onwind', 'offwind', 'solar']:
+        if tech == 'offwind':
+            for node in offwind_nodes:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
+                n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
+
+        else:
+            for node in pro_names:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
+                n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
+
+    n.generators.p_nom_max[n.generators.p_nom_max < 0] = 0
 
     for c in n_p.iterate_components(["Link", "Generator", "Store"]):
 
@@ -51,19 +71,13 @@ def add_brownfield(n, n_p, year):
         # since CHP heat Link is proportional to CHP electric Link, make sure threshold is compatible
         chp_heat = c.df.index[(
             c.df[attr + "_nom_extendable"]
-            & c.df.index.str.contains("urban central")
             & c.df.index.str.contains("CHP")
-            & c.df.index.str.contains("heat")
         )]
 
         threshold = snakemake.config['existing_capacities']['threshold_capacity']
 
         if not chp_heat.empty:
-            threshold_chp_heat = (threshold
-                * c.df.efficiency[chp_heat.str.replace("heat", "electric")].values
-                * c.df.p_nom_ratio[chp_heat.str.replace("heat", "electric")].values
-                / c.df.efficiency[chp_heat].values
-            )
+            threshold_chp_heat = threshold*c.df.loc[chp_heat].efficiency2/c.df.loc[chp_heat].efficiency
             n_p.mremove(
                 c.name,
                 chp_heat[c.df.loc[chp_heat, attr + "_nom_opt"] < threshold_chp_heat]
@@ -114,7 +128,9 @@ def add_brownfield(n, n_p, year):
         #     n.links.loc[new_pipes, "p_nom"] = 0.
         #     n.links.loc[new_pipes, "p_nom_min"] = 0.
 
-
+    if year == 2025:
+        for i in n_update.index:
+            n.generators.loc[i, 'p_nom'] = n_update.loc[i].p_nom_opt + n.generators.loc[i, 'p_nom']
 
 #%%
 if __name__ == "__main__":

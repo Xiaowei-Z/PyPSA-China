@@ -14,6 +14,7 @@ import yaml
 
 from prepare_network import prepare_costs
 from _helpers import override_component_attrs, define_spatial
+from functions import pro_names, offwind_nodes
 
 from types import SimpleNamespace
 spatial = SimpleNamespace()
@@ -49,7 +50,15 @@ def add_build_year_to_new_assets(n, baseyear):
 
 def add_existing_capacities(df_agg):
 
-    for tech in ['coal','CHP','solar', 'onwind', 'offwind']:
+    carrier = {
+        "coal": "coal",
+        "CHP": "coal",
+        "OCGT": "gas",
+        "solar": "solar",
+        "onwind": "onwind",
+        "offwind": "offwind"}
+
+    for tech in ['coal','CHP', 'OCGT','solar', 'onwind', 'offwind']:
 
         df = pd.read_csv(snakemake.input[f"existing_{tech}"], index_col=0).fillna(0.)
         df.columns = df.columns.astype(int)
@@ -60,10 +69,8 @@ def add_existing_capacities(df_agg):
                 name = f"{node}-{tech}-{year}"
                 capacity = df.loc[node, year]
                 if capacity > 0.:
-                    if tech != 'CHP':
-                        df_agg.at[name, "Fueltype"] = tech
-                    else:
-                        df_agg.at[name, "Fueltype"] = 'coal'
+                    df_agg.at[name, "Fueltype"] = carrier[tech]
+                    df_agg.at[name, "Tech"] = tech
                     df_agg.at[name, "Capacity"] = capacity
                     df_agg.at[name, "DateIn"] = year
                     df_agg.at[name, "cluster_bus"] = node
@@ -93,7 +100,7 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
     )
 
     df = df_agg.pivot_table(
-        index=["grouping_year", 'Fueltype'],
+        index=["grouping_year", 'Tech'],
         columns='cluster_bus',
         values='Capacity',
         aggfunc='sum'
@@ -150,25 +157,43 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        lifetime=costs.at[generator, 'lifetime']
                        )
         else:
-            bus0 = capacity.index + " CHP coal"
+            if generator == 'CHP':
+                bus0 = capacity.index + " CHP coal"
 
-            n.madd("Link",
-                   capacity.index,
-                   suffix=" " + generator + "-" + str(grouping_year),
-                   bus0=bus0,
-                   bus1=capacity.index,
-                   bus2=capacity.index + " central heat",
-                   carrier=generator,
-                   marginal_cost=costs.at['gas', 'fuel'],  # NB: VOM is per MWel
-                   capital_cost=costs.at['central CHP', 'fixed'],  # NB: fixed cost is per MWel
-                   p_nom=capacity,
-                   p_nom_min=capacity,
-                   p_nom_extendable=False,
-                   efficiency=config['chp_parameters']['eff_el'],
-                   efficiency2=config['chp_parameters']['eff_th'],
-                   build_year=grouping_year,
-                   lifetime=costs.at["central CHP", 'lifetime']
-                   )
+                n.madd("Link",
+                       capacity.index,
+                       suffix=" " + generator + "-" + str(grouping_year),
+                       bus0=bus0,
+                       bus1=capacity.index,
+                       bus2=capacity.index + " central heat",
+                       carrier=generator,
+                       marginal_cost=costs.at['coal', 'fuel'],  # NB: VOM is per MWel
+                       capital_cost=costs.at['central CHP', 'fixed'],  # NB: fixed cost is per MWel,
+                       p_nom=capacity,
+                       p_nom_min=capacity,
+                       p_nom_extendable=False,
+                       efficiency=config['chp_parameters']['eff_el'],
+                       efficiency2=config['chp_parameters']['eff_th'],
+                       build_year=grouping_year,
+                       lifetime=costs.at["central CHP", 'lifetime']
+                       )
+            else:
+                bus0 = capacity.index + " gas"
+                n.madd("Link",
+                       capacity.index,
+                       suffix=" " + generator + "-" + str(grouping_year),
+                       bus0=bus0,
+                       bus1=capacity.index,
+                       marginal_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'VOM'],  # NB: VOM is per MWel
+                       capital_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'fixed'],
+                       # NB: fixed cost is per MWel
+                       p_nom=capacity,
+                       p_nom_min=capacity,
+                       p_nom_extendable=False,
+                       efficiency=costs.at["OCGT", 'efficiency'],
+                       build_year=grouping_year,
+                       lifetime=costs.at["OCGT",'lifetime'])
+
 
 
 if __name__ == "__main__":
@@ -176,8 +201,8 @@ if __name__ == "__main__":
         from _helpers import mock_snakemake
         snakemake = mock_snakemake(
             'add_existing_baseyear',
-            co2_reduction='0.0',
-            opts ='ll',
+            co2_reduction='1.0',
+            opts='ll',
             planning_horizons=2020
         )
 
@@ -200,5 +225,17 @@ if __name__ == "__main__":
 
     grouping_years = snakemake.config['existing_capacities']['grouping_years']
     add_power_capacities_installed_before_baseyear(n, grouping_years, costs, baseyear, snakemake.config)
+
+    ## update renewable potentials
+
+    for tech in ['onwind', 'offwind', 'solar']:
+        if tech == 'offwind':
+            for node in offwind_nodes:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
+                n.generators[(n.generators.bus == node) & (n.generators.carrier == tech)].p_nom.sum()
+        else:
+            for node in pro_names:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
+                n.generators[(n.generators.bus == node) & (n.generators.carrier == tech)].p_nom.sum()
 
     n.export_to_netcdf(snakemake.output[0])
