@@ -1,18 +1,28 @@
 # SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
-version: 0.2.3
+
+version: 0.4.5
 logging_level: INFO
 foresight: "myopic"
 
 results_dir: 'results/'
 summary_dir: 'summary/'
 
+typology: "current"  # "current" or "FCG"
+
 scenario:
   flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
   CHP_emission_accounting: [ 'dresden' ]
-  co2_reduction: 1.0
+  co2_reduction:
+    '2020': 0.3
+    '2025': 0.4
+    '2030': 0.5
+    '2035': 0.6
+    '2040': 0.7
+    '2045': 0.8
+    '2050': 0.9
   opts: ['ll']
   attr: 'p_nom'
   planning_horizons:
@@ -69,7 +79,7 @@ add_hydro: True
 add_H2_storage: True
 add_battery_storage: True
 add_coal: True
-add_OCGT: True
+add_gas: True
 add_nuclear: True
 add_methanation: True
 add_helmeth: True
@@ -239,6 +249,7 @@ plotting:
     "OCGT" : "#d35050"
     "gas-AC" : "#d35050"
     "gas" : "#d35050"
+    "CHP": "#b20101"
     "AC-heat" : "#b20101"
     "heat pump": "#b20101"
     "nuclear" : "#ff9000"
@@ -265,6 +276,7 @@ plotting:
     "DC-DC" : "#8a1caf"
     "DC link" : "#8a1caf"
   nice_names:
+    CHP: "Combined Heat and Power"
     OCGT: "Open-Cycle Gas"
     CCGT: "Combined-Cycle Gas"
     offwind: "Offshore Wind"
@@ -328,7 +340,7 @@ line_cost_factor: 1
 
 existing_capacities:
   grouping_years: [1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050, 2055, 2060]
-  threshold_capacity: 10
+  threshold_capacity: 1
 
 sector:
   district_heating:
