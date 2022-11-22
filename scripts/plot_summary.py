@@ -67,7 +67,7 @@ def plot_costs(infn, config, fn=None):
 
     df = df.groupby(df.index.map(rename_techs)).sum()
 
-    to_drop = df.index[df.max(axis=1) < config['plotting']['costs_threshold']]
+    to_drop = df.index[df.max(axis=1) < config['plotting']['costs_plots_threshold']]
 
     print("dropping")
 
@@ -165,8 +165,7 @@ def plot_energy(infn, config, fn=None):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('plot_summary', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll')
+        snakemake = mock_snakemake('plot_summary', co2_reduction='0.3', planning_horizons = 2020, opts = 'll')
     configure_logging(snakemake)
 
     config = snakemake.config

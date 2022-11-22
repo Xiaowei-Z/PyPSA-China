@@ -1,5 +1,6 @@
 import logging
 from _helpers import (load_network_for_plots, aggregate_p, aggregate_costs, configure_logging)
+from functions import pro_names
 
 import pandas as pd
 import numpy as np
@@ -12,6 +13,8 @@ from matplotlib.legend_handler import HandlerPatch
 to_rgba = mpl.colors.colorConverter.to_rgba
 
 logger = logging.getLogger(__name__)
+
+opt_name = {"Store": "e", "Line" : "s", "Transformer" : "s"}
 
 
 def make_handler_map_to_scale_circles_as_in(ax, dont_resize_actively=False):
@@ -71,7 +74,7 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
         bus_sizes = bus_sizes.groupby(['bus','carrier']).sum()
         line_widths_exp = n.lines.s_nom_opt
         line_widths_cur = n.lines.s_nom_min
-        link_widths_exp = n.links.query('carrier == ["AC-AC"]').p_nom_opt.append(n.links.query('carrier != ["AC-AC"]').p_min_pu)
+        link_widths_exp = n.links.query('carrier == ["AC-AC"]').p_nom_opt.append(n.links.query('carrier != ["AC-AC"]').p_min_pu) - n.links.p_nom_min
         link_widths_cur = n.links.p_nom_min
     else:
         raise 'plotting of {} has not been implemented yet'.format(attribute)
@@ -116,7 +119,7 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
     handles = []
     labels = []
 
-    for s in (100, 10):
+    for s in (50, 10):
         handles.append(plt.Line2D([0], [0], color=line_colors['exp'],
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("{} GW".format(s))
@@ -129,7 +132,7 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
 
     handles = []
     labels = []
-    for s in (100, 10):
+    for s in (50, 10):
         handles.append(plt.Line2D([0], [0], color=line_colors['cur'],
                                   linewidth=s * 1e3 / linewidth_factor))
         labels.append("/")
@@ -201,9 +204,8 @@ def plot_total_cost_bar(n, opts, ax=None):
 
     costs, costs_cap_ex, costs_cap_new, costs_marg = split_costs(n)
 
-    costs_graph = pd.DataFrame(dict(a=costs.drop('load', errors='ignore')),
-                               index=['AC-AC', 'AC line', 'onwind', 'offwind-ac',
-                                      'offwind-dc', 'solar', 'OCGT', 'CCGT', 'battery', 'H2']).dropna()
+    costs_graph = pd.DataFrame(dict(a=costs[costs > opts['costs_threshold']])).dropna()
+
     bottom = np.array([0., 0.])
     texts = []
 
@@ -230,16 +232,151 @@ def plot_total_cost_bar(n, opts, ax=None):
         texts.append(text)
 
     ax.set_ylabel("Average system cost [Eur/MWh]")
-    ax.set_ylim([0, opts.get('costs_max', 80)])
+    ax.set_ylim([0, opts.get('costs_avg', 80)])
     ax.set_xlim([0, 1])
     ax.set_xticklabels([])
     ax.grid(True, axis="y", color='k', linestyle='dotted')
 
+
+def plot_cost_map(n, opts, ax=None, attribute='p_nom'):
+    if ax is None:
+        ax = plt.gca()
+
+    ## DATA
+    line_colors = {'cur': "purple",
+                   'exp': mpl.colors.rgb2hex(to_rgba("red", 0.7), True)}
+    tech_colors = opts['tech_colors']
+
+    if attribute == 'p_nom':
+
+        for c in n.iterate_components({'Generator', 'Link', 'Store'}):
+            if c.name == "Generator":
+                generator_capital_costs = c.df.query('carrier != "hydro_inflow"').capital_cost * \
+                                          c.df.query('carrier != "hydro_inflow"')[
+                                              opt_name.get(c.name, "p") + "_nom_opt"]
+                generator_capital_costs_grouped = generator_capital_costs.groupby([c.df.bus, c.df.carrier]).sum()
+                p = c.pnl.p.multiply(n.snapshot_weightings.generators, axis=0).sum()
+                generator_marginal_costs = p * c.df.marginal_cost
+                generator_marginal_costs_grouped = generator_marginal_costs.groupby(
+                    [c.df.bus, c.df.query('carrier != "hydro_inflow"').carrier]).sum()
+            elif c.name == "Link":
+                link_capital_costs = c.df.query('carrier == ["gas-AC","coal-AC"]').capital_cost * \
+                                     c.df.query('carrier == ["gas-AC","coal-AC"]')[
+                                         opt_name.get(c.name, "p") + "_nom_opt"]
+                link_capital_costs_grouped = link_capital_costs.groupby([c.df.bus1, c.df.carrier]).sum()
+                p = c.pnl.p0.multiply(n.snapshot_weightings.generators, axis=0).sum()
+                link_marginal_costs = p * c.df.marginal_cost
+                link_marginal_costs_grouped = link_marginal_costs.groupby(
+                    [c.df.bus1, c.df.query('carrier == ["gas-AC","coal-AC"]').carrier]).sum()
+            else:
+                p = c.pnl.p.multiply(n.snapshot_weightings.generators, axis=0).sum()
+                store_marginal_costs = p * c.df.marginal_cost
+                store_marginal_costs_grouped = store_marginal_costs.groupby(
+                    [c.df.bus, c.df.query('carrier == ["gas","coal"]').carrier]).sum()
+
+        carrier = ['coal', 'gas']
+        store_marginal_costs_grouped.index = pd.MultiIndex.from_product([pro_names, carrier], names=["bus", "carrier"])
+
+        bus_sizes = pd.concat(
+            [generator_capital_costs_grouped, link_capital_costs_grouped, generator_marginal_costs_grouped,
+             link_marginal_costs_grouped, store_marginal_costs_grouped]).groupby(['bus', 'carrier']).sum()
+        line_widths_exp = n.lines.s_nom_opt
+        line_widths_cur = n.lines.s_nom_min
+        link_widths_exp = n.links.query('carrier == ["AC-AC"]').p_nom_opt.append(
+            n.links.query('carrier != ["AC-AC"]').p_min_pu) - n.links.p_nom_min
+        link_widths_cur = n.links.p_nom_min
+    else:
+        raise 'plotting of {} has not been implemented yet'.format(attribute)
+
+    line_colors_with_alpha = \
+        ((line_widths_cur / n.lines.s_nom > 1e-3)
+         .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}))
+    link_colors_with_alpha = \
+        ((link_widths_cur / n.links.p_nom > 1e-3)
+         .map({True: line_colors['cur'], False: to_rgba(line_colors['cur'], 0.)}))
+
+    ## FORMAT
+    linewidth_factor = opts['map'][attribute]['linewidth_factor']
+    bus_size_factor = opts['map'][attribute]['cost_size_factor']
+
+    ## PLOT
+    n.plot(line_widths=line_widths_exp / linewidth_factor,
+           link_widths=link_widths_exp / linewidth_factor,
+           line_colors=line_colors['exp'],
+           link_colors=line_colors['exp'],
+           bus_sizes=bus_sizes / bus_size_factor,
+           bus_colors=tech_colors,
+           boundaries=map_boundaries,
+           color_geomap=True, geomap=True,
+           ax=ax)
+    n.plot(line_widths=line_widths_cur / linewidth_factor,
+           link_widths=link_widths_cur / linewidth_factor,
+           line_colors=line_colors_with_alpha,
+           link_colors=link_colors_with_alpha,
+           bus_sizes=0,
+           boundaries=map_boundaries,
+           color_geomap=True, geomap=False,
+           ax=ax)
+    ax.set_aspect('equal')
+    ax.axis('off')
+
+    # Rasterize basemap
+    # TODO : Check if this also works with cartopy
+    for c in ax.collections[:2]: c.set_rasterized(True)
+
+    # LEGEND
+    handles = []
+    labels = []
+
+    for s in (50, 10):
+        handles.append(plt.Line2D([0], [0], color=line_colors['exp'],
+                                  linewidth=s * 1e3 / linewidth_factor))
+        labels.append("{} GW".format(s))
+    l1_1 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.24, 1.01),
+                     frameon=False,
+                     labelspacing=0.8, handletextpad=1.5,
+                     title='Transmission Exp./Exist.             ')
+    ax.add_artist(l1_1)
+
+    handles = []
+    labels = []
+    for s in (50, 10):
+        handles.append(plt.Line2D([0], [0], color=line_colors['cur'],
+                                  linewidth=s * 1e3 / linewidth_factor))
+        labels.append("/")
+    l1_2 = ax.legend(handles, labels,
+                     loc="upper left", bbox_to_anchor=(0.26, 1.01),
+                     frameon=False,
+                     labelspacing=0.8, handletextpad=0.5,
+                     title=' ')
+    ax.add_artist(l1_2)
+
+    handles = make_legend_circles_for([10e9, 5e9, 1e9], scale=bus_size_factor, facecolor="w")
+    labels = ["{}B \N{euro sign}".format(s) for s in (10, 5, 1)]
+    l2 = ax.legend(handles, labels,
+                   loc="upper left", bbox_to_anchor=(0.01, 1.01),
+                   frameon=False, labelspacing=1.0,
+                   title='Generation',
+                   handler_map=make_handler_map_to_scale_circles_as_in(ax))
+    ax.add_artist(l2)
+
+    techs = (bus_sizes.index.levels[1]).intersection(
+        pd.Index(opts['vre_techs'] + opts['conv_techs'] + opts['storage_techs']))
+    handles = []
+    labels = []
+    for t in techs:
+        handles.append(plt.Line2D([0], [0], color=tech_colors[t], marker='o', markersize=8, linewidth=0))
+        labels.append(opts['nice_names'].get(t, t))
+    l3 = ax.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.),  # bbox_to_anchor=(0.72, -0.05),
+                   handletextpad=0., columnspacing=0.5, ncol=4, title='Technology')
+
+    return fig
+
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('plot_network', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll')
+        snakemake = mock_snakemake('plot_network', opts='ll', planning_horizons=2020)
     configure_logging(snakemake)
 
     set_plot_style()
@@ -265,3 +402,7 @@ if __name__ == "__main__":
     plot_total_cost_bar(n, config["plotting"], ax=ax2)
 
     fig.savefig(snakemake.output.ext, transparent=True, bbox_inches='tight')
+
+    fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
+    plot_cost_map(n, config["plotting"], ax=ax, attribute=config["scenario"]["attr"])
+    fig.savefig(snakemake.output.cost_map, dpi=150, bbox_inches='tight')

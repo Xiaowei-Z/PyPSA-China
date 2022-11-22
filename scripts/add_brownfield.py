@@ -9,6 +9,7 @@ idx = pd.IndexSlice
 import pypsa
 import yaml
 import numpy as np
+import xarray as xr
 
 from add_existing_baseyear import add_build_year_to_new_assets
 from _helpers import override_component_attrs
@@ -36,17 +37,9 @@ def add_brownfield(n, n_p, year):
     n.lines.s_nom_min = n_p.lines.s_nom_opt
     # dc_i = n.links[n.links.carrier=="DC"].index
     # n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
-
-    for tech in ['onwind', 'offwind', 'solar']:
-        if tech == 'offwind':
-            for node in offwind_nodes:
-                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
-                n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
-
-        else:
-            for node in pro_names:
-                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech)] -= \
-                n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
+    # update links
+    n.links.p_nom.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
+    n.links.p_nom_min.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
 
     n.generators.p_nom_max[n.generators.p_nom_max < 0] = 0
 
@@ -127,6 +120,17 @@ def add_brownfield(n, n_p, year):
         #     new_pipes = n.links.carrier.isin(pipe_carrier) & (n.links.build_year==year)
         #     n.links.loc[new_pipes, "p_nom"] = 0.
         #     n.links.loc[new_pipes, "p_nom_min"] = 0.
+    for tech in ['onwind', 'offwind', 'solar']:
+        ds_tech = xr.open_dataset(snakemake.input['profile_' + tech])
+        p_nom_max_initial = ds_tech['p_nom_max'].to_pandas()
+        if tech == 'offwind':
+            for node in offwind_nodes:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech) & (n.generators.build_year == year)] = \
+                p_nom_max_initial[node] - n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
+        else:
+            for node in pro_names:
+                n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech) & (n.generators.build_year == year)] = \
+                p_nom_max_initial[node] - n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
 
     if year == 2025:
         for i in n_update.index:

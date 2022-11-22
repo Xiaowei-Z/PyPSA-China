@@ -146,7 +146,7 @@ def prepare_costs(Nyears, config):
     return costs
 
 
-def prepare_data(network):
+def prepare_data(network,date_range):
 
 
     ##############
@@ -159,11 +159,11 @@ def prepare_data(network):
         #the ffill converts daily values into hourly values
         h = store['heat_demand_profiles']
         h_n = h[~h.index.duplicated(keep='first')].iloc[:-1,:]
-        heat_demand_hdh = h_n.reindex(index=network.snapshots, method="ffill")
+        heat_demand_hdh = h_n.reindex(index=date_range, method="ffill")
 
     with pd.HDFStore(snakemake.input.cop_name, mode='r') as store:
-        ashp_cop = store['ashp_cop_profiles'].reindex(index=network.snapshots)
-        gshp_cop = store['gshp_cop_profiles'].reindex(index=network.snapshots)
+        ashp_cop = store['ashp_cop_profiles'].reindex(index=date_range)
+        gshp_cop = store['gshp_cop_profiles'].reindex(index=date_range)
 
     with pd.HDFStore(snakemake.input.energy_totals_name, mode='r') as store:
         space_heating_per_hdd = store['space_heating_per_hdd']
@@ -176,6 +176,7 @@ def prepare_data(network):
     water_heat_demand = intraday_year_profiles.mul(hot_water_per_day/24.)
 
     heat_demand = space_heat_demand + water_heat_demand#only consider heat demand at first
+    heat_demand = heat_demand.set_index(network.snapshots)
 
     ###############
     #CO2
@@ -226,7 +227,8 @@ def prepare_network(config):
     edges_current = pd.read_csv("data/edges_current.csv", header=None)
 
     #set times
-    network.set_snapshots(pd.date_range(config['tmin'],config['tmax'],freq=config['freq']))
+    planning_horizons = snakemake.wildcards['planning_horizons']
+    network.set_snapshots(pd.date_range(str(planning_horizons)+config['tmin'],str(planning_horizons)+config['tmax'],freq=config['freq']))
 
     network.snapshot_weightings[:] = config['frequency']
     represented_hours = network.snapshot_weightings.sum()[0]
@@ -234,11 +236,28 @@ def prepare_network(config):
 
     costs = prepare_costs(Nyears, config)
 
-    heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals = prepare_data(network)
+    if int(planning_horizons) % 4 == 0:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-12-31 23:00', freq=config['freq'])
+    else:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-02-28 23:00', freq=config['freq']).append(pd.date_range('2020-03-01 00:00', '2020-12-31 23:00', freq=config['freq']))
+
+    heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals = prepare_data(network,date_range)
 
     ds_solar = xr.open_dataset(snakemake.input.profile_solar)
     ds_onwind = xr.open_dataset(snakemake.input.profile_onwind)
     ds_offwind = xr.open_dataset(snakemake.input.profile_offwind)
+
+    if int(planning_horizons) % 4 == 0:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-12-31 23:00', freq=config['freq'])
+    else:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-02-28 23:00', freq=config['freq']).append(
+            pd.date_range('2020-03-01 00:00', '2020-12-31 23:00', freq=config['freq']))
+
+    solar_p_max_pu = ds_solar['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
+    onwind_p_max_pu = ds_onwind['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
+    offwind_p_max_pu = ds_offwind['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
+
+
 
     # network.heat_demand = heat_demand
     # heat_demand.to_hdf(snakemake.output.heat_demand_name, key='heat_demand', mode='w')
@@ -289,7 +308,6 @@ def prepare_network(config):
             #
             # if config["heat_coupling"]:
             #     co2_limit += co2_totals['heating']
-            planning_horizons = snakemake.wildcards['planning_horizons']
 
             co2_limit *= 1 - config['scenario']['co2_reduction'][planning_horizons]
 
@@ -303,7 +321,7 @@ def prepare_network(config):
 
 
     #load demand data
-    with pd.HDFStore(f'data/load/load_{config["load_year"]}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
+    with pd.HDFStore(f'data/load/load_{planning_horizons}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
         load = 1e6 * store['load'].loc[network.snapshots]
 
     load.columns = pro_names
@@ -320,7 +338,7 @@ def prepare_network(config):
                  p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['onwind','fixed'],
                  marginal_cost=costs.at['onwind','VOM'],
-                 p_max_pu=ds_onwind['profile'].transpose('time','bus').to_pandas(),
+                 p_max_pu=onwind_p_max_pu,
                  lifetime=costs.at['onwind','lifetime'])
 
     offwind_nodes = ds_offwind['bus'].to_pandas().index
@@ -333,7 +351,7 @@ def prepare_network(config):
                  p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['offwind','fixed'],
                  marginal_cost=costs.at['offwind','VOM'],
-                 p_max_pu=ds_offwind['profile'].transpose('time', 'bus').to_pandas(),
+                 p_max_pu=offwind_p_max_pu,
                  lifetime=costs.at['offwind', 'lifetime'])
 
     network.madd("Generator",
@@ -345,7 +363,7 @@ def prepare_network(config):
                  p_nom_max=ds_solar['p_nom_max'].to_pandas(),
                  capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
                  marginal_cost=costs.at['solar','VOM'],
-                 p_max_pu=ds_solar['profile'].transpose('time', 'bus').to_pandas(),
+                 p_max_pu=solar_p_max_pu,
                  lifetime=costs.at['solar', 'lifetime'])
 
     #add conventionals
@@ -551,8 +569,15 @@ def prepare_network(config):
         for inflow_station in inflow_stations:
 
             # p_nom = 1 and p_max_pu & p_min_pu = p_pu, compulsory inflow
-            p_nom = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station].max()
-            p_pu = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station] / p_nom
+
+            if int(planning_horizons) % 4 == 0:
+                date_range = pd.date_range('2016-01-01 00:00', '2016-12-31 23:00', freq=config['freq'])
+            else:
+                date_range = pd.date_range('2016-01-01 00:00', '2016-02-28 23:00', freq=config['freq']).append(
+                    pd.date_range('2016-03-01 00:00', '2016-12-31 23:00', freq=config['freq']))
+
+            p_nom = (inflow.loc[date_range]/water_consumption_factor).iloc[:,inflow_station].max()
+            p_pu = (inflow.loc[date_range]/water_consumption_factor).iloc[:,inflow_station] / p_nom
             p_pu.index = network.snapshots
             network.add('Generator',
                        dams.index[inflow_station] + ' inflow',
@@ -963,10 +988,10 @@ def prepare_network(config):
             lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
                                       [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges.values])
 
-            if config['line_volume_limit_max'] is not None:
-                cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
-            else:
-                cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
+            # if config['line_volume_limit_max'] is not None:
+            #     cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
+            # else:
+            cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
                                                               lengths]) * 1.5 * 1.02 * Nyears * annuity(40.,config['costs']['discountrate'])
 
             network.madd("Link",
@@ -982,19 +1007,20 @@ def prepare_network(config):
             lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
                                       [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges_current[[0,1]].values])
 
-            if config['line_volume_limit_max'] is not None:
-                cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
-            else:
-                cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
+            # if config['line_volume_limit_max'] is not None:
+            #     cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
+            # else:
+            cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
                                                               lengths]) * 1.5 * 1.02 * Nyears * annuity(40.,config['costs']['discountrate'])
 
             network.madd("Link",
                      edges_current[0] + '-' + edges_current[1],
                      bus0=edges_current[0].values,
                      bus1=edges_current[1].values,
-                     p_nom_extendable=False,
+                     p_nom_extendable=True,
                      p_min_pu=-1,
                      p_nom=edges_current[2].values,
+                     p_nom_min=edges_current[2].values,
                      length=lengths,
                      capital_cost=cc)
 
