@@ -10,7 +10,7 @@ from shutil import copyfile, move
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
 
-configfile: "config.yaml"
+configfile: "config_delay.yaml"
 
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
@@ -283,6 +283,8 @@ if config["foresight"] == "myopic":
             network=config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks/prenetwork-{opts}-{planning_horizons}.nc',
             network_p=solved_previous_horizon,#solved network at previous time step
             costs="data/costs_{planning_horizons}.csv",
+            **{f"profile_{tech}": f"resources/profile_{tech}.nc"
+                for tech in config['renewable']}
         output: config['results_dir'] + 'version-' + str(config['version']) + '/prenetworks-brownfield/prenetwork-{opts}-{planning_horizons}.nc'
         threads: 4
         resources: mem_mb=10000
@@ -309,7 +311,8 @@ if config["foresight"] == "myopic":
             tech_costs=COSTS
         output:
             only_map=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{opts}-{planning_horizons}.pdf',
-            ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{opts}-{planning_horizons}_ext.pdf'
+            cost_map=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{opts}-{planning_horizons}-cost.pdf',
+            ext=config['results_dir'] + 'version-' + str(config['version']) + '/plots/postnetwork-{opts}-{planning_horizons}_ext.pdf',
         log: "logs/plot_network/postnetwork-{opts}-{planning_horizons}.log"
         script: "scripts/plot_network.py"
 
