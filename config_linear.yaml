@@ -2,22 +2,43 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-# Config for non-pathway study
-
-version: 0.0.0
+version: 1.175.1 # linear 1; exponential 2; beta 3
 logging_level: INFO
-foresight: "non-pathway"
+foresight: "myopic"
 
 results_dir: 'results/'
 summary_dir: 'summary/'
 
+typology: "current+FCG"  # "current" or "FCG" or "current+FCG"
+
 scenario:
+  flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
+  CHP_emission_accounting: [ 'dresden' ]
   pathway: ['linear']
-  co2_reduction: 1.0
+  co2_reduction:
+    '2020': 0.0
+    '2025': 0.16666667
+    '2030': 0.33333333
+    '2035': 0.5
+    '2040': 0.66666667
+    '2045': 0.83333333
+    '2050': 1.0
+    '2055': 1.0
+    '2060': 1.0
+  co2_total_parameter: 175
   opts: ['ll']
-  topology: "current+FCG" # "current" or "FCG" or "current+FCG"
-  planning_horizons: 2060 # 2020 to 2060; 5-year step
+  attr: 'p_nom'
+  planning_horizons:
+    - 2020
+    - 2025
+    - 2030
+    - 2035
+    - 2040
+    - 2045
+    - 2050
+    - 2055
+    - 2060
 
 tmin: '-01-01 00:00'
 tmax: '-12-31 23:00'
@@ -62,6 +83,12 @@ add_gas: True
 add_nuclear: True
 add_methanation: True
 add_helmeth: True
+add_dac: False
+
+retrofitting: False
+retrofitting-cost_factor: 1.0
+retroI-fraction: 0.25
+retroII-fraction: 0.55
 
 heat_coupling: True
 add_heat_pumps: True
@@ -75,6 +102,12 @@ solar_cf_correction: 0.788457
 add_thermal_storage: True
 time_dep_hp_cop: True
 tes_tau: 3.
+
+transport_coupling: False
+add_v2g: False
+add_bev: False
+bev_availability: 0.5
+transport_fuel_cell_share: 0.
 
 renewable:
   onwind:
