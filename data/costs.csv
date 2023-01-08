@@ -46,7 +46,7 @@ solar-utility,2030,FOM,3,%/year,ETIP PV
 biomass,2030,FOM,4.526935,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 geothermal,2030,FOM,2.358491,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 coal,2030,FOM,1.923076,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
-lignite,2030,FOM,2.0,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
+lignite,2030,FOM,2,%/year,DIW DataDoc http://hdl.handle.net/10419/80348 PC (Advanced/SuperC)
 oil,2030,FOM,1.5,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 PHS,2030,FOM,1,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
 hydro,2030,FOM,1,%/year,DIW DataDoc http://hdl.handle.net/10419/80348
