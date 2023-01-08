@@ -41,8 +41,6 @@ def add_brownfield(n, n_p, year):
     n.links.p_nom.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
     n.links.p_nom_min.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
 
-    n.generators.p_nom_max[n.generators.p_nom_max < 0] = 0
-
     for c in n_p.iterate_components(["Link", "Generator", "Store"]):
 
         attr = "e" if c.name == "Store" else "p"
@@ -131,6 +129,8 @@ def add_brownfield(n, n_p, year):
             for node in pro_names:
                 n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech) & (n.generators.build_year == year)] = \
                 p_nom_max_initial[node] - n_p.generators[(n_p.generators.bus == node) & (n_p.generators.carrier == tech)].p_nom_opt.sum()
+
+    n.generators.p_nom_max[n.generators.p_nom_max < 0] = 0
 
     if year == 2025:
         for i in n_update.index:

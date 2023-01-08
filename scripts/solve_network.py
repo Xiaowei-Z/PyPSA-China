@@ -110,8 +110,11 @@ def solve_network(n, config, opts='', **kwargs):
 if __name__ == '__main__':
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('solve_networks', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.1',opts='ll')
+        snakemake = mock_snakemake('solve_networks',
+                                   opts='ll',
+                                   typology='current+FCG',
+                                   co2_reduction='0.0',
+                                   planning_horizons=2060)
     configure_logging(snakemake)
 
     tmpdir = snakemake.config['solving'].get('tmpdir') #tmp dir?

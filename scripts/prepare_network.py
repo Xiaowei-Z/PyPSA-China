@@ -1,34 +1,22 @@
-# from pyutilib.services import TempfileManager
-# TempfileManager.tempdir = '/home/201402677/tmp'
+# SPDX-FileCopyrightText: : 2022 The PyPSA-China Authors
+#
+# SPDX-License-Identifier: MIT
+
+# for non-pathway network
 
 from vresutils.costdata import annuity
-# import vresutils.hydro as vhydro
-# import vresutils.file_io_helper as io_helper
-# import vresutils.load as vload
-# import vresutils.shapes as vshapes
-# from vresutils import timer
-
-import logging
 from _helpers import configure_logging
-
 import pypsa
 from shapely.geometry import Point
 import geopandas as gpd
-import datetime
 import pandas as pd
 import numpy as np
-import os
 import pytz
-import yaml
-from six import iteritems, iterkeys, itervalues
-import sys
 from math import radians, cos, sin, asin, sqrt
 from functools import partial
 import pyproj
 from shapely.ops import transform
-import warnings
 import xarray as xr
-
 from functions import pro_names, HVAC_cost_curve
 
 
@@ -223,9 +211,12 @@ def prepare_network(config):
     #load graph
     nodes = pd.Index(pro_names)
     edges = pd.read_csv("data/edges.txt", sep=",", header=None)
+    edges_current = pd.read_csv("data/edges_current.csv", header=None)
+    edges_current_FCG = pd.read_csv("data/edges_current_FCG.csv", header=None)
 
     #set times
-    network.set_snapshots(pd.date_range(config['tmin'],config['tmax'],freq=config['freq']))
+    planning_horizons = snakemake.wildcards['planning_horizons']
+    network.set_snapshots(pd.date_range(str(planning_horizons)+config['tmin'],str(planning_horizons)+config['tmax'],freq=config['freq']))
 
     network.snapshot_weightings[:] = config['frequency']
     represented_hours = network.snapshot_weightings.sum()[0]
@@ -233,15 +224,26 @@ def prepare_network(config):
 
     costs = prepare_costs(Nyears, config)
 
+    if int(planning_horizons) % 4 == 0:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-12-31 23:00', freq=config['freq'])
+    else:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-02-28 23:00', freq=config['freq']).append(pd.date_range('2020-03-01 00:00', '2020-12-31 23:00', freq=config['freq']))
+
     heat_demand, space_heat_demand, water_heat_demand, ashp_cop, gshp_cop, co2_totals = prepare_data(network)
 
     ds_solar = xr.open_dataset(snakemake.input.profile_solar)
     ds_onwind = xr.open_dataset(snakemake.input.profile_onwind)
     ds_offwind = xr.open_dataset(snakemake.input.profile_offwind)
 
-    # network.heat_demand = heat_demand
-    # heat_demand.to_hdf(snakemake.output.heat_demand_name, key='heat_demand', mode='w')
+    if int(planning_horizons) % 4 == 0:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-12-31 23:00', freq=config['freq'])
+    else:
+        date_range = pd.date_range('2020-01-01 00:00', '2020-02-28 23:00', freq=config['freq']).append(
+            pd.date_range('2020-03-01 00:00', '2020-12-31 23:00', freq=config['freq']))
 
+    solar_p_max_pu = ds_solar['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
+    onwind_p_max_pu = ds_onwind['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
+    offwind_p_max_pu = ds_offwind['profile'].transpose('time', 'bus').to_pandas().loc[date_range].set_index(network.snapshots)
 
     pro_shapes = gpd.GeoDataFrame.from_file('data/province_shapes/CHN_adm1.shp')
     pro_shapes = pro_shapes.to_crs(4326)
@@ -272,24 +274,12 @@ def prepare_network(config):
     if config["heat_coupling"]:
         network.add("Carrier","heat")
         network.add("Carrier","water tanks")
-    if config["retrofitting"]:
-        network.add("Carrier", "retrofitting")
-    if config["transport_coupling"]:
-        network.add("Carrier","Li ion")
 
     if not isinstance(config['scenario']['co2_reduction'], tuple):
 
         if config['scenario']['co2_reduction'] is not None:
 
-            co2_limit = 5.59*1e9
-
-            # if config["transport_coupling"]:
-            #     co2_limit += co2_totals['transport']
-            #
-            # if config["heat_coupling"]:
-            #     co2_limit += co2_totals['heating']
-
-            co2_limit *= 1 - config['scenario']['co2_reduction']
+            co2_limit = 5.59*1e9 * (1 - config['scenario']['co2_reduction']) # Chinese 2020 CO2 emissions of electric and heating sector
 
             network.add("GlobalConstraint",
                         "co2_limit",
@@ -298,10 +288,8 @@ def prepare_network(config):
                         sense="<=",
                         constant=co2_limit)
 
-
-
     #load demand data
-    with pd.HDFStore(f'data/load/load_{config["load_year"]}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
+    with pd.HDFStore(f'data/load/load_{planning_horizons}_weatheryears_1979_2016_TWh.h5', mode='r') as store:
         load = 1e6 * store['load'].loc[network.snapshots]
 
     load.columns = pro_names
@@ -309,37 +297,30 @@ def prepare_network(config):
     network.madd("Load", nodes, bus=nodes, p_set=load[nodes])
 
     #add renewables
-    Onwind_p_nom = pd.read_hdf('data/p_nom/onwind_p_nom.h5')
     network.madd("Generator",
                  nodes,
                  suffix=' onwind',
                  bus=nodes,
                  carrier="onwind",
                  p_nom_extendable=True,
-                 p_nom=Onwind_p_nom,
-                 p_nom_min=Onwind_p_nom,
                  p_nom_max=ds_onwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['onwind','fixed'],
                  marginal_cost=costs.at['onwind','VOM'],
-                 p_max_pu=ds_onwind['profile'].transpose('time','bus').to_pandas())
+                 p_max_pu=onwind_p_max_pu,
+                 lifetime=costs.at['onwind','lifetime'])
 
     offwind_nodes = ds_offwind['bus'].to_pandas().index
-    Offwind_p_nom = pd.read_hdf('data/p_nom/offwind_p_nom.h5')
     network.madd("Generator",
                  offwind_nodes,
                  suffix=' offwind',
                  bus=offwind_nodes,
                  carrier="offwind",
                  p_nom_extendable=True,
-                 p_nom=Offwind_p_nom,
-                 p_nom_min=Offwind_p_nom,
                  p_nom_max=ds_offwind['p_nom_max'].to_pandas(),
                  capital_cost = costs.at['offwind','fixed'],
-                 p_max_pu=ds_offwind['profile'].transpose('time','bus').to_pandas(),
-                 marginal_cost=costs.at['offwind','VOM']
-                 )
-    
-    Solar_p_nom = pd.read_hdf('data/p_nom/solar_p_nom.h5')
+                 marginal_cost=costs.at['offwind','VOM'],
+                 p_max_pu=offwind_p_max_pu,
+                 lifetime=costs.at['offwind', 'lifetime'])
     
     network.madd("Generator",
                  nodes,
@@ -347,20 +328,16 @@ def prepare_network(config):
                  bus=nodes,
                  carrier="solar",
                  p_nom_extendable=True,
-                 p_nom=Solar_p_nom,
-                 p_nom_min=Solar_p_nom,
                  p_nom_max=ds_solar['p_nom_max'].to_pandas(),
                  capital_cost = 0.5*(costs.at['solar-rooftop','fixed']+costs.at['solar-utility','fixed']),
-                 p_max_pu=ds_solar['profile'].transpose('time','bus').to_pandas(),
-                 marginal_cost=costs.at['solar','VOM']
-                 )
+                 marginal_cost=costs.at['solar','VOM'],
+                 p_max_pu=solar_p_max_pu,
+                 lifetime=costs.at['solar', 'lifetime'])
 
-    #add conventionals
-    if config['add_OCGT']:
+    # add conventionals
+    if config['add_gas']:
         # add converter from fuel source
-        
-        OCGT_p_nom = pd.read_hdf('data/p_nom/OCGT_p_nom.h5')
-        
+
         network.madd("Bus",
                      nodes,
                      suffix=" gas",
@@ -368,50 +345,86 @@ def prepare_network(config):
                      y=pro_shapes['geometry'].centroid.y,
                      carrier="gas")
 
+        network.madd("Store",
+                     nodes + " gas Store",
+                     bus=nodes + " gas",
+                     e_nom_extendable=True,
+                     e_min_pu=-1,
+                     e_max_pu=0,
+                     marginal_cost=costs.at["gas", 'fuel'])
+
         network.madd("Link",
                      nodes,
                      suffix=" OCGT",
                      bus0=nodes + " gas",
                      bus1=nodes,
-                     marginal_cost=costs.at["OCGT",'efficiency']*costs.at["OCGT",'VOM'], #NB: VOM is per MWel
-                     capital_cost=costs.at["OCGT",'efficiency']*costs.at["OCGT",'fixed'], #NB: fixed cost is per MWel
-                     p_nom_extendable=False,
-                     p_nom=OCGT_p_nom,
-                     p_nom_min=OCGT_p_nom,
-                     efficiency=costs.at["OCGT",'efficiency'])
+                     marginal_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'VOM'],  # NB: VOM is per MWel
+                     capital_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'fixed'],
+                     # NB: fixed cost is per MWel
+                     p_nom_extendable=True,
+                     efficiency=costs.at["OCGT", 'efficiency'],
+                     lifetime=costs.at["OCGT", 'lifetime'])
 
-        network.madd("Store",
-                     nodes + " gas Store",
-                     bus=nodes + " gas",
-                     e_nom_extendable=True,
-                     e_min_pu=-1.,
-                     marginal_cost=costs.at["gas",'fuel'])
-        
+        if config['add_chp']:
+            network.madd("Link",
+                         nodes,
+                         suffix=" CHP gas",
+                         bus0=nodes + " gas",
+                         bus1=nodes,
+                         bus2=nodes + " central heat",
+                         p_nom_extendable=True,
+                         capital_cost=costs.at['central CHP', 'fixed'],
+                         efficiency=config['chp_parameters']['eff_el'],
+                         efficiency2=config['chp_parameters']['eff_th'],
+                         lifetime=25)
        
     if config['add_coal']:
           network.add("Carrier","coal",co2_emissions=costs.at['coal','CO2 intensity'])
-          coal_p_nom = pd.read_hdf('data/p_nom/Coal_p_nom.h5')
           network.madd("Generator",
-                     nodes,
-                     suffix=' coal',
-                     p_nom_extendable= False,
-                     p_nom=coal_p_nom,
-                     p_nom_min=coal_p_nom,
-                     bus=nodes,
-                     carrier="coal",
-                     efficiency=0.45,
-                     marginal_cost=costs.at['coal','fuel'])
-    
+                        nodes,
+                        suffix=' coal',
+                        bus=nodes,
+                        carrier="coal",
+                        p_nom_extendable=True,
+                        efficiency=costs.at['coal', 'efficiency'],
+                        capital_cost=costs.at['coal', 'investment'],
+                        marginal_cost=costs.at['coal','fuel'],
+                        lifetime=costs.at['coal', 'lifetime'])
+
+          if config['add_chp']:
+              network.madd("Bus",
+                         nodes,
+                         suffix=' CHP coal',
+                         x=pro_shapes['geometry'].centroid.x,
+                         y=pro_shapes['geometry'].centroid.y,
+                         carrier='coal')
+
+              network.madd("Store",
+                         nodes + " CHP coal Store",
+                         bus=nodes + " CHP coal",
+                         e_nom_extendable=True,
+                         e_min_pu=-1.,
+                         e_max_pu=0,
+                         marginal_cost=costs.at['coal', 'fuel'])
+
+              network.madd("Link",
+                         nodes,
+                         suffix=" CHP coal",
+                         bus0=nodes + " CHP coal",
+                         bus1=nodes,
+                         bus2=nodes + " central heat",
+                         p_nom_extendable=True,
+                         capital_cost=costs.at['central CHP', 'fixed'],
+                         efficiency=config['chp_parameters']['eff_el'],
+                         efficiency2=config['chp_parameters']['eff_th'],
+                         lifetime=25)
 
     if config['add_nuclear']:
         network.add("Carrier","uranium")
-        nuclear_p_nom = pd.read_hdf('data/p_nom/nuclear_p_nom.h5')
         network.madd("Generator",
                      nodes,
                      suffix=' nuclear',
-                     p_nom=nuclear_p_nom,
-                     p_nom_min=nuclear_p_nom,
-                     p_nom_extendable=False,
+                     p_nom_extendable=True,
                      bus=nodes,
                      carrier="uranium",
                      efficiency=costs.at['nuclear','efficiency'],
@@ -534,8 +547,14 @@ def prepare_network(config):
         for inflow_station in inflow_stations:
 
             # p_nom = 1 and p_max_pu & p_min_pu = p_pu, compulsory inflow
-            p_nom = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station].max()
-            p_pu = (inflow.loc[pd.date_range('2016-01-01 00:00','2016-12-31 23:00',freq=config['freq'])]/water_consumption_factor).iloc[:,inflow_station] / p_nom
+            if int(planning_horizons) % 4 == 0:
+                date_range = pd.date_range('2016-01-01 00:00', '2016-12-31 23:00', freq=config['freq'])
+            else:
+                date_range = pd.date_range('2016-01-01 00:00', '2016-02-28 23:00', freq=config['freq']).append(
+                    pd.date_range('2016-03-01 00:00', '2016-12-31 23:00', freq=config['freq']))
+
+            p_nom = (inflow.loc[date_range]/water_consumption_factor).iloc[:,inflow_station].max()
+            p_pu = (inflow.loc[date_range]/water_consumption_factor).iloc[:,inflow_station] / p_nom
             p_pu.index = network.snapshots
             network.add('Generator',
                        dams.index[inflow_station] + ' inflow',
@@ -697,7 +716,8 @@ def prepare_network(config):
                              carrier='heat pump',
                              efficiency=ashp_cop[nodes] if config["time_dep_hp_cop"] else costs.at[cat.lstrip()+"air-sourced heat pump",'efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'air-sourced heat pump','investment'],
-                             p_nom_extendable=True)
+                             p_nom_extendable=True,
+                             lifetime=20)
 
             network.madd("Link",
                          nodes,
@@ -707,63 +727,8 @@ def prepare_network(config):
                          carrier='heat pump',
                          efficiency=gshp_cop[nodes] if config["time_dep_hp_cop"] else costs.at['decentral ground-sourced heat pump','efficiency'],
                          capital_cost=costs.at['decentral ground-sourced heat pump','investment'],
-                         p_nom_extendable=True)
-
-        if config['retrofitting']:
-
-            retro_nodes = pd.Index(["DE"])
-
-            space_heat_demand = space_heat_demand[retro_nodes]
-
-            square_metres = population[retro_nodes]/population['DE']*5.7e9   #HPI 3.4e9m^2 for DE res, 2.3e9m^2 for tert https://doi.org/10.1016/j.rser.2013.09.012
-
-            space_peak = space_heat_demand.max()
-
-            space_pu = space_heat_demand.divide(space_peak)
-
-            network.madd('Generator',
-                         retro_nodes,
-                         suffix=' retrofitting I',
-                         bus=retro_nodes+' heat',
-                         carrier="retrofitting",
                          p_nom_extendable=True,
-                         p_nom_max=config['retroI-fraction']*space_peak*(1-central_fraction),
-                         p_max_pu=space_pu,
-                         p_min_pu=space_pu,
-                         capital_cost=config['retrofitting-cost_factor']*costs.at['retrofitting I','fixed']*square_metres/(config['retroI-fraction']*space_peak))
-
-            network.madd('Generator',
-                         retro_nodes,
-                         suffix=' retrofitting II',
-                         bus=retro_nodes+' heat',
-                         carrier="retrofitting",
-                         p_nom_extendable=True,
-                         p_nom_max=config['retroII-fraction']*space_peak*(1-central_fraction),
-                         p_max_pu=space_pu,
-                         p_min_pu=space_pu,
-                         capital_cost=config['retrofitting-cost_factor']*costs.at['retrofitting II','fixed']*square_metres/(config['retroII-fraction']*space_peak))
-
-            network.madd('Generator',
-                         retro_nodes,
-                         suffix=' urban retrofitting I',
-                         bus=retro_nodes+' urban heat',
-                         carrier="retrofitting",
-                         p_nom_extendable=True,
-                         p_nom_max=config['retroI-fraction']*space_peak*central_fraction,
-                         p_max_pu=space_pu,
-                         p_min_pu=space_pu,
-                         capital_cost=config['retrofitting-cost_factor']*costs.at['retrofitting I','fixed']*square_metres/(config['retroI-fraction']*space_peak))
-
-            network.madd('Generator',
-                         retro_nodes,
-                         suffix=' urban retrofitting II',
-                         bus=retro_nodes+' urban heat',
-                         carrier="retrofitting",
-                         p_nom_extendable=True,
-                         p_nom_max=config['retroII-fraction']*space_peak*central_fraction,
-                         p_max_pu=space_pu,
-                         p_min_pu=space_pu,
-                         capital_cost=config['retrofitting-cost_factor']*costs.at['retrofitting II','fixed']*square_metres/(config['retroII-fraction']*space_peak))
+                         lifetime=20)
 
         if config['add_thermal_storage']:
 
@@ -798,7 +763,8 @@ def prepare_network(config):
                              e_cyclic=True,
                              e_nom_extendable=True,
                              standing_loss=1-np.exp(-1/(24.* (config["tes_tau"] if cat==' decentral ' else 180.))),  # [HP] 180 day time constant for centralised, 3 day for decentralised
-                             capital_cost=costs.at[cat.lstrip()+'water tank storage','fixed']/(1.17e-3*40)) #conversion from EUR/m^3 to EUR/MWh for 40 K diff and 1.17 kWh/m^3/K
+                             capital_cost=costs.at[cat.lstrip()+'water tank storage','fixed']/(1.17e-3*40),
+                             lifetime=20) #conversion from EUR/m^3 to EUR/MWh for 40 K diff and 1.17 kWh/m^3/K
 
         if config["add_boilers"]:
 
@@ -809,86 +775,17 @@ def prepare_network(config):
                              bus1=nodes + cat + "heat",
                              efficiency=costs.at[cat.lstrip()+'resistive heater','efficiency'],
                              capital_cost=costs.at[cat.lstrip()+'resistive heater','efficiency']*costs.at[cat.lstrip()+'resistive heater','fixed'],
-                             p_nom_extendable=True)
-
-                # network.madd("Bus",
-                #              nodes,
-                #              suffix=cat + "gas",
-                #              x=pro_shapes['geometry'].centroid.x,
-                #              y=pro_shapes['geometry'].centroid.y,
-                #              carrier='gas')
-
-                # network.madd("Store",
-                #              nodes + cat + "gas Store",
-                #              bus=nodes + cat + "gas",
-                #              e_nom_extendable=True,
-                #              e_min_pu=-1.,
-                #              marginal_cost=costs.at['gas','fuel'])
-
-                network.madd("Link",
-                             nodes + cat + "gas boiler",
                              p_nom_extendable=True,
-                             bus0=nodes + " gas",
-                             bus1=nodes + cat + "heat",
-                             efficiency=costs.at[cat.lstrip()+'gas boiler','efficiency'],
-                             capital_cost=costs.at[cat.lstrip()+'gas boiler','efficiency']*costs.at[cat.lstrip()+'gas boiler','fixed'])
-
-        if config["add_chp"]:
-            
-            # network.madd("Bus",
-            #              nodes,
-            #              suffix=' CHPgas',
-            #              x=pro_shapes['geometry'].centroid.x,
-            #              y=pro_shapes['geometry'].centroid.y,
-            #              carrier='gas')
-            #
-            # network.madd("Store",
-            #              nodes + " CHPgas Store",
-            #              bus=nodes + " CHPgas",
-            #              e_nom_extendable=True,
-            #              e_min_pu=-1.,
-            #              marginal_cost=costs.at['gas','fuel'])
-
-            network.madd("Link",
-                         nodes,
-                         suffix=" CHP gas",
-                         bus0=nodes + " gas",
-                         bus1=nodes,
-                         bus2=nodes + " central heat",
-                         p_nom_extendable=True,
-                         capital_cost=costs.at['central CHP','fixed'],
-                         efficiency=config['chp_parameters']['eff_el'],
-                         efficiency2=config['chp_parameters']['eff_th'])
-            
-            Coal_CHP_p_nom = pd.read_hdf('data/p_nom/CHP_p_nom.h5')
-            
-            network.madd("Bus",
-                         nodes,
-                         suffix=' CHP coal',
-                         x=pro_shapes['geometry'].centroid.x,
-                         y=pro_shapes['geometry'].centroid.y,
-                         carrier='coal')
-
-            network.madd("Store",
-                         nodes + " CHP coal Store",
-                         bus=nodes + " CHP coal",
-                         e_nom_extendable=True,
-                         e_min_pu=-1.,
-                         marginal_cost=costs.at['coal','fuel'])
-
-            network.madd("Link",
-                         nodes,
-                         suffix=" CHP coal",
-                         bus0=nodes + " CHP coal",
-                         bus1=nodes,
-                         bus2=nodes + " central heat",
-                         p_nom_extendable=False,
-                         capital_cost=10000,
-                         p_nom=Coal_CHP_p_nom,
-                         p_nom_min=Coal_CHP_p_nom,
-                         efficiency=config['chp_parameters']['eff_el'],
-                         efficiency2=config['chp_parameters']['eff_th']
-                         )
+                             lifetime=20)
+                if config['add_gas']:
+                    network.madd("Link",
+                                 nodes + cat + "gas boiler",
+                                 p_nom_extendable=True,
+                                 bus0=nodes + " gas",
+                                 bus1=nodes + cat + "heat",
+                                 efficiency=costs.at[cat.lstrip()+'gas boiler','efficiency'],
+                                 capital_cost=costs.at[cat.lstrip()+'gas boiler','efficiency']*costs.at[cat.lstrip()+'gas boiler','fixed'],
+                                 lifetime=20)
 
         if config["add_solar_thermal"]:
 
@@ -906,120 +803,71 @@ def prepare_network(config):
                              carrier="solar thermal",
                              p_nom_extendable=True,
                              capital_cost=costs.at[cat.lstrip()+'solar thermal','fixed'],
-                             p_max_pu=solar_thermal[nodes].clip(1.e-4))
-
-
-    if config['add_dac']: # Direct Air Capture
-
-        network.add("Carrier",
-                    "co2",
-                    co2_emissions=1.)
-
-        network.add("Bus",
-                    "EU co2",
-                    carrier="co2")
-
-        #could add capital costs here
-        network.add("Store",
-                    "EU co2 Store",
-                    bus="EU co2",
-                    e_nom_extendable=True)
-
-        #could consider to do this in high density area
-        network.madd("Link",
-                     nodes + " DAC",
-                     bus0=["EU co2"]*len(nodes),
-                     bus1=nodes + " decentral heat",
-                     bus2=nodes,
-                     p_max_pu=0,
-                     p_min_pu=-1,
-                     p_nom_extendable=True,
-                     efficiency=1.5,
-                     efficiency2=0.22,
-                     capital_cost=costs.at["DAC","fixed"]*8760)
-
-    if config["transport_coupling"]:
-
-        network.madd("Bus",
-                     nodes,
-                     suffix=" EV battery",
-                     x=pro_shapes['geometry'].centroid.x,
-                     y=pro_shapes['geometry'].centroid.y,
-                     carrier="Li ion")
-
-        network.madd("Load",
-                     nodes,
-                     suffix=" transport",
-                     bus=nodes + " EV battery",
-                     p_set=(1-config['transport_fuel_cell_share'])*(transport[nodes]+shift_df(transport[nodes],1)+shift_df(transport[nodes],2))/3.)
-
-        p_nom = transport_data["number cars"]*0.011*(1-config['transport_fuel_cell_share'])  #3-phase charger with 11 kW * x% of time grid-connected
-
-        network.madd("Link",
-                     nodes,
-                     suffix= " BEV charger",
-                     bus0=nodes,
-                     bus1=nodes + " EV battery",
-                     p_nom=p_nom,
-                     p_max_pu=avail_profile[nodes],
-                     efficiency=0.9, #[B]
-                     #These were set non-zero to find LU infeasibility when availability = 0.25
-                     #p_nom_extendable=True,
-                     #p_nom_min=p_nom,
-                     #capital_cost=1e6,  #i.e. so high it only gets built where necessary
-                     )
-
-        if config["add_v2g"]:
-
-            network.madd("Link",
-                         nodes,
-                         suffix=" V2G",
-                         bus1=nodes,
-                         bus0=nodes + " EV battery",
-                         p_nom=p_nom,
-                         p_max_pu=avail_profile[nodes],
-                         efficiency=0.9)  #[B]
-
-
-
-        if config["add_bev"]:
-
-            network.madd("Store",
-                         nodes,
-                         suffix=" battery storage",
-                         bus=nodes + " EV battery",
-                         e_cyclic=True,
-                         e_nom=transport_data["number cars"]*0.05*config["bev_availability"]*(1-config['transport_fuel_cell_share']), #50 kWh battery http://www.zeit.de/mobilitaet/2014-10/auto-fahrzeug-bestand
-                         e_max_pu=1,
-                         e_min_pu=dsm_profile[nodes])
-
-
-        if config['transport_fuel_cell_share'] != 0:
-
-            network.madd("Load",
-                         nodes,
-                         suffix=" transport fuel cell",
-                         bus=nodes + " H2",
-                         p_set=config['transport_fuel_cell_share']/0.58*transport[nodes])
+                             p_max_pu=solar_thermal[nodes].clip(1.e-4),
+                             lifetime=20)
 
     #add lines
+
     if not config['no_lines']:
 
-        lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
+        if config['scenario']['topology'] == 'FCG':
+            lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
                                       [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges.values])
 
-        if config['line_volume_limit_max'] is not None:
-            cc = Nyears*0.01 # Set line costs to ~zero because we already restrict the line volume
-        else:
-            cc = (config['line_cost_factor']*lengths*[HVAC_cost_curve(l) for l in lengths]) * 1.5 * 1.02 * Nyears*annuity(40.,config['costs']['discountrate'])
+            # if config['line_volume_limit_max'] is not None:
+            #     cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
+            # else:
+            cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
+                                                              lengths]) * 1.5 * 1.02 * Nyears * annuity(40.,config['costs']['discountrate'])
 
+            network.madd("Link",
+                         edges[0] + '-' + edges[1],
+                         bus0=edges[0].values,
+                         bus1=edges[1].values,
+                         p_nom_extendable=True,
+                         p_min_pu=-1,
+                         length=lengths,
+                         capital_cost=cc)
 
-        network.madd("Link",
-                     edges[0] + '-' + edges[1],
-                     bus0=edges[0].values,
-                     bus1=edges[1].values,
+        if config['scenario']['topology'] == 'current':
+            lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
+                                      [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges_current[[0,1]].values])
+
+            # if config['line_volume_limit_max'] is not None:
+            #     cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
+            # else:
+            cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
+                                                              lengths]) * 1.5 * 1.02 * Nyears * annuity(40.,config['costs']['discountrate'])
+
+            network.madd("Link",
+                     edges_current[0] + '-' + edges_current[1],
+                     bus0=edges_current[0].values,
+                     bus1=edges_current[1].values,
                      p_nom_extendable=True,
                      p_min_pu=-1,
+                     p_nom=edges_current[2].values,
+                     p_nom_min=edges_current[2].values,
+                     length=lengths,
+                     capital_cost=cc)
+
+        if config['scenario']['topology'] == 'current+FCG':
+            lengths = 1.25 * np.array([haversine([network.buses.at[name0,"x"],network.buses.at[name0,"y"]],
+                                      [network.buses.at[name1,"x"],network.buses.at[name1,"y"]]) for name0,name1 in edges_current_FCG[[0,1]].values])
+
+            # if config['line_volume_limit_max'] is not None:
+            #     cc = Nyears * 0.01  # Set line costs to ~zero because we already restrict the line volume
+            # else:
+            cc = (config['line_cost_factor'] * lengths * [HVAC_cost_curve(l) for l in
+                                                              lengths]) * 1.5 * 1.02 * Nyears * annuity(40.,config['costs']['discountrate'])
+
+            network.madd("Link",
+                     edges_current_FCG[0] + '-' + edges_current_FCG[1],
+                     bus0=edges_current_FCG[0].values,
+                     bus1=edges_current_FCG[1].values,
+                     p_nom_extendable=True,
+                     p_min_pu=-1,
+                     p_nom=edges_current_FCG[2].values,
+                     p_nom_min=edges_current_FCG[2].values,
                      length=lengths,
                      capital_cost=cc)
 
@@ -1030,8 +878,11 @@ if __name__ == '__main__':
     # Detect running outside of snakemake and mock snakemake for testing
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('prepare_networks', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0',opts='ll')
+        snakemake = mock_snakemake('prepare_networks',
+                                   opts='ll',
+                                   typology='current+FCG',
+                                   co2_reduction='0.0',
+                                   planning_horizons=2060)
     configure_logging(snakemake)
 
     population = pd.read_hdf(snakemake.input.population_name)

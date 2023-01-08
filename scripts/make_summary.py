@@ -50,7 +50,7 @@ def assign_carriers(n):
 def calculate_costs(n, label, costs):
 
     for c in n.iterate_components(n.branch_components|n.controllable_one_port_components^{"Load"}):
-        capital_costs = c.df.capital_cost*c.df[opt_name.get(c.name,"p") + "_nom_opt"]
+        capital_costs = c.df.capital_cost*(c.df[opt_name.get(c.name,"p") + "_nom_opt"] - c.df[opt_name.get(c.name,"p") + "_nom"])
         capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
 
         # Index tuple(s) indicating the newly to-be-added row(s)
@@ -372,8 +372,7 @@ def to_csv(dfs, dir):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('make_summary', flexibility='seperate_co2_reduction', line_limits='opt',
-                                   CHP_emission_accounting='dresden', co2_reduction='0.0', opts='ll', attr='p_nom')
+        snakemake = mock_snakemake('plot_summary', planning_horizons = 2020, opts = 'll')
     configure_logging(snakemake)
 
     config = snakemake.config
@@ -385,10 +384,21 @@ if __name__ == "__main__":
         w = getattr(wildcards, key)
         return config["scenario"][key] if w == "all" else [w]
 
-    networks_dict = {(opts,planning_horizons):
-        os.path.join(network_dir, f'postnetwork-{opts}-{planning_horizons}.nc')
-                     for opts in expand_from_wildcard("opts", config)
-                     for planning_horizons in expand_from_wildcard("planning_horizons", config)}
+    if config["foresight"] == "non-pathway":
+        networks_dict = {(opts,planning_horizons):
+            os.path.join(network_dir, f'postnetwork-{opts}-{topology}-{co2_reduction}-{planning_horizons}.nc')
+                         for opts in expand_from_wildcard("opts", config)
+                         for topology in expand_from_wildcard("topology", config)
+                         for co2_reduction in expand_from_wildcard("co2_reduction", config)
+                         for planning_horizons in expand_from_wildcard("planning_horizons", config)}
+
+    if config["foresight"] == "myopic":
+        networks_dict = {(opts,planning_horizons):
+            os.path.join(network_dir, f'postnetwork-{opts}-{planning_horizons}-{pathway}-{co2_total_parameter}.nc')
+                         for opts in expand_from_wildcard("opts", config)
+                         for planning_horizons in expand_from_wildcard("planning_horizons", config)
+                         for pathway in expand_from_wildcard("pathway", config)
+                         for co2_total_parameter in expand_from_wildcard("co2_total_parameter", config)}
 
     dfs = make_summaries(networks_dict, snakemake.input, config)
 

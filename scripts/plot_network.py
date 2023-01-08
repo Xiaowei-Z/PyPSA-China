@@ -127,7 +127,7 @@ def plot_opt_map(n, opts, ax=None, attribute='p_nom'):
                      loc="upper left", bbox_to_anchor=(0.24, 1.01),
                      frameon=False,
                      labelspacing=0.8, handletextpad=1.5,
-                     title='Transmission Exp./Exist.             ')
+                     title='Transmission Exist./Exp.             ')
     ax.add_artist(l1_1)
 
     handles = []
@@ -336,7 +336,7 @@ def plot_cost_map(n, opts, ax=None, attribute='p_nom'):
                      loc="upper left", bbox_to_anchor=(0.24, 1.01),
                      frameon=False,
                      labelspacing=0.8, handletextpad=1.5,
-                     title='Transmission Exp./Exist.             ')
+                     title='Transmission Exist./Exp.             ')
     ax.add_artist(l1_1)
 
     handles = []
@@ -391,7 +391,7 @@ if __name__ == "__main__":
     scenario_opts = wildcards.opts.split('-')
 
     fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
-    plot_opt_map(n, config["plotting"], ax=ax, attribute=config["scenario"]["attr"])
+    plot_opt_map(n, config["plotting"], ax=ax)
 
     fig.savefig(snakemake.output.only_map, dpi=150, bbox_inches='tight')
 
@@ -404,5 +404,5 @@ if __name__ == "__main__":
     fig.savefig(snakemake.output.ext, transparent=True, bbox_inches='tight')
 
     fig, ax = plt.subplots(figsize=map_figsize, subplot_kw={"projection": ccrs.PlateCarree()})
-    plot_cost_map(n, config["plotting"], ax=ax, attribute=config["scenario"]["attr"])
+    plot_cost_map(n, config["plotting"], ax=ax)
     fig.savefig(snakemake.output.cost_map, dpi=150, bbox_inches='tight')

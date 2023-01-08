@@ -165,7 +165,7 @@ def plot_energy(infn, config, fn=None):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('plot_summary', co2_reduction='0.3', planning_horizons = 2020, opts = 'll')
+        snakemake = mock_snakemake('plot_summary', planning_horizons = 2020, opts = 'll')
     configure_logging(snakemake)
 
     config = snakemake.config
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     out = snakemake.output
     paths = snakemake.input
 
-    Summary = ['costs', 'energy']
+    Summary = ['energy', 'costs']
     summary_i = 0
     for summary in Summary:
         try:
