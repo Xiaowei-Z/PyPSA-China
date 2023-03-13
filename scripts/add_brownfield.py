@@ -22,14 +22,14 @@ def basename(x):
 def add_brownfield(n, n_p, year):
 
     # first year
-    if year == 2025:
-            n_update = n_p.generators[(n_p.generators.build_year == 0) &
-                                      (n_p.generators.p_nom_opt >= 10) &
-                                      (n_p.generators.lifetime != np.inf)]
-            baseyear = 2020
-            rename = pd.Series(n_update.index, n_update.index)
-            rename += "-" + str(baseyear)
-            n_update.rename(index=rename, inplace=True)
+    # if year == 2025:
+    #         n_update = n_p.generators[(n_p.generators.build_year == 0) &
+    #                                   (n_p.generators.p_nom_opt >= 10) &
+    #                                   (n_p.generators.lifetime != np.inf)]
+    #         baseyear = 2020
+    #         rename = pd.Series(n_update.index, n_update.index)
+    #         rename += "-" + str(baseyear)
+    #         n_update.rename(index=rename, inplace=True)
 
     print("adding brownfield")
 
@@ -38,8 +38,13 @@ def add_brownfield(n, n_p, year):
     # dc_i = n.links[n.links.carrier=="DC"].index
     # n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
     # update links
-    n.links.p_nom.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
-    n.links.p_nom_min.loc[(n.links.lifetime == np.inf) & (n.links.p_nom_min > 0)] = n_p.links.p_nom_opt.loc[(n_p.links.lifetime == np.inf) & (n_p.links.p_nom_min > 0)]
+    n.links.p_nom.loc[n.links.length>0] = n_p.links.p_nom_opt.loc[(n_p.links.carrier=='AC') & (n_p.links.build_year==0)]
+    n.links.p_nom_min.loc[n.links.length>0] = n_p.links.p_nom_opt.loc[(n_p.links.carrier=='AC') & (n_p.links.build_year==0)]
+
+    if year == 2025:
+        n_p.mremove('Generator',n_p.generators.index[n_p.generators.p_nom_opt<1])
+        n_p.mremove('Link',n_p.links.index[n_p.links.p_nom_opt<1])
+        add_build_year_to_new_assets(n_p, 2020)
 
     for c in n_p.iterate_components(["Link", "Generator", "Store"]):
 
@@ -51,13 +56,11 @@ def add_brownfield(n, n_p, year):
             c.name,
             c.df.index[c.df.lifetime==np.inf]
         )
-
         # remove assets whose build_year + lifetime < year
         n_p.mremove(
             c.name,
             c.df.index[c.df.build_year + c.df.lifetime < year]
         )
-
         # remove assets if their optimized nominal capacity is lower than a threshold
         # since CHP heat Link is proportional to CHP electric Link, make sure threshold is compatible
         chp_heat = c.df.index[(
@@ -91,8 +94,9 @@ def add_brownfield(n, n_p, year):
             n.component_attrs[c.name].type.str.contains("series")
             & n.component_attrs[c.name].status.str.contains("Input")
         )
+
         for tattr in n.component_attrs[c.name].index[selection]:
-            n.import_series_from_dataframe(c.pnl[tattr], c.name, tattr)
+            n.import_series_from_dataframe(c.pnl[tattr].set_index(n.snapshots), c.name, tattr)
 
         # deal with gas network
         # pipe_carrier = ['gas pipeline']
@@ -118,9 +122,11 @@ def add_brownfield(n, n_p, year):
         #     new_pipes = n.links.carrier.isin(pipe_carrier) & (n.links.build_year==year)
         #     n.links.loc[new_pipes, "p_nom"] = 0.
         #     n.links.loc[new_pipes, "p_nom_min"] = 0.
+
     for tech in ['onwind', 'offwind', 'solar']:
         ds_tech = xr.open_dataset(snakemake.input['profile_' + tech])
         p_nom_max_initial = ds_tech['p_nom_max'].to_pandas()
+
         if tech == 'offwind':
             for node in offwind_nodes:
                 n.generators.p_nom_max.loc[(n.generators.bus == node) & (n.generators.carrier == tech) & (n.generators.build_year == year)] = \
@@ -132,20 +138,22 @@ def add_brownfield(n, n_p, year):
 
     n.generators.p_nom_max[n.generators.p_nom_max < 0] = 0
 
-    if year == 2025:
-        for i in n_update.index:
-            n.generators.loc[i, 'p_nom'] = n_update.loc[i].p_nom_opt + n.generators.loc[i, 'p_nom']
+    # if year == 2025:
+    #     for i in n_update.index:
+    #         n.generators.loc[i, 'p_nom'] = n_update.loc[i].p_nom_opt + n.generators.loc[i, 'p_nom']
 
 #%%
-if __name__ == "__main__":
+
+if __name__ == '__main__':
+
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake(
-            'add_brownfield',
-            co2_reduction='1.0',
-            opts='ll',
-            planning_horizons=2030
-        )
+        snakemake = mock_snakemake('add_brownfield',
+                                   opts='ll',
+                                   topology='current+FCG',
+                                   pathway='linear-275',
+                                   co2_reduction='1.0',
+                                   planning_horizons=2025)
 
     print(snakemake.input.network_p)
     logging.basicConfig(level=snakemake.config['logging_level'])
@@ -161,4 +169,4 @@ if __name__ == "__main__":
 
     add_brownfield(n, n_p, year)
 
-    n.export_to_netcdf(snakemake.output[0])
+    n.export_to_netcdf(snakemake.output.network_name)

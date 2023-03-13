@@ -14,7 +14,7 @@ def build_heat_demand_profiles():
         pop_map = store['population_gridcell_map']
 
 
-    cutout = atlite.Cutout('cutouts/China-2020.nc')
+    cutout = atlite.Cutout(snakemake.input['cutout'])
 
     pop_matrix = sp.sparse.csr_matrix(pop_map.T)
     index = pop_map.columns

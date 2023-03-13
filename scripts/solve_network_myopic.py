@@ -63,10 +63,17 @@ def add_battery_constraints(n):
     nodes = n.buses.index[n.buses.carrier == "battery"]
     if nodes.empty or ('Link', 'p_nom') not in n.variables.index:
         return
+
+    planning_horizon = snakemake.wildcards.planning_horizons
     link_p_nom = get_var(n, "Link", "p_nom")
-    lhs = linexpr((1,link_p_nom[nodes + " charger"]),
-                  (-n.links.loc[nodes + " discharger", "efficiency"].values,
-                   link_p_nom[nodes + " discharger"].values))
+    if planning_horizon == "2020":
+        lhs = linexpr((1,link_p_nom[nodes + " charger"]),
+                      (-n.links.loc[nodes + " discharger", "efficiency"].values,
+                       link_p_nom[nodes + " discharger"].values))
+    else:
+        lhs = linexpr((1,link_p_nom[nodes + " charger-" + planning_horizon]),
+                      (-n.links.loc[nodes + " discharger", "efficiency"].values,
+                       link_p_nom[nodes + " discharger"].values))
     define_constraints(n, lhs, "=", 0, 'Link', 'charger_ratio')
 
 def extra_functionality(n, snapshots):

@@ -24,7 +24,7 @@ def calculate_annuity(n, r):
     else:
         return 1 / n
 
-def load_costs(tech_costs, config, elec_config, Nyears=1.):
+def load_costs(tech_costs, config, elec_config,cost_year, Nyears):
 
     # set all asset costs and other parameters
     costs = pd.read_csv(tech_costs, index_col=list(range(3))).sort_index()
@@ -33,8 +33,10 @@ def load_costs(tech_costs, config, elec_config, Nyears=1.):
     costs.loc[costs.unit.str.contains("/kW"),"value"] *= 1e3
     costs.loc[costs.unit.str.contains("USD"),"value"] *= config['USD2013_to_EUR2013']
 
-    costs = (costs.loc[idx[:,config['year'],:], "value"]
+    cost_year = float(cost_year)
+    costs = (costs.loc[idx[:,cost_year,:], "value"]
              .unstack(level=2).groupby("technology").sum(min_count=1))
+
 
     costs = costs.fillna({"CO2 intensity" : 0,
                           "FOM" : 0,
@@ -75,7 +77,7 @@ def load_costs(tech_costs, config, elec_config, Nyears=1.):
         costs_for_storage(costs.loc["battery storage"], costs.loc["battery inverter"],
                           max_hours=max_hours['battery'])
     costs.loc["H2"] = \
-        costs_for_storage(costs.loc["hydrogen storage"], costs.loc["fuel cell"],
+        costs_for_storage(costs.loc["hydrogen storage tank"], costs.loc["fuel cell"],
                           costs.loc["electrolysis"], max_hours=max_hours['H2'])
 
     for attr in ('marginal_cost', 'capital_cost'):

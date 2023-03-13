@@ -120,7 +120,7 @@ def mock_snakemake(rulename, **wildcards):
     os.chdir(script_dir)
     return snakemake
 
-def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
+def load_network_for_plots(fn, tech_costs, config,cost_year, combine_hydro_ps=True):
     import pypsa
     from add_electricity import update_transmission_costs, load_costs
 
@@ -144,7 +144,7 @@ def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     # n.storage_units.loc[bus_carrier == "heat","carrier"] = "water tanks"
 
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
-    costs = load_costs(tech_costs, config['costs'], config['electricity'], Nyears)
+    costs = load_costs(tech_costs, config['costs'], config['electricity'], cost_year, Nyears)
     update_transmission_costs(n, costs)
 
     return n

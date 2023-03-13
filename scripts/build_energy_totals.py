@@ -28,10 +28,32 @@ def build_energy_totals():
     # and it has a population of 100,000 
     # source: Svend DH book and wiki
     # MWh/capita/year = 4270 * 1e12 / 3.6e9 * 0.28 / 1e5
-    unit_hot_water = 3.321111111111111
+    #unit_hot_water = 3.321111111111111
+
+    # In 2008 China 228.4 Twh for urban residential DHW
+    # MWh/capita/year = 228.4 * 1e6 / 62403/1e4 =
+    unit_hot_water = 0.366008
 
     # m2/capital source: urbanization yearbooks
-    floor_space_per_capita = 27.28
+    if snakemake.wildcards.planning_horizons == 2020:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2025:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2030:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2035:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2040:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2045:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2050:
+        floor_space_per_capita = 18.96
+    elif snakemake.wildcards.planning_horizons == 2055:
+        floor_space_per_capita = 18.96
+    else:
+        floor_space_per_capita = 18.96
+
     #2020 27.28; 2025 32.75; 2030 36.98; 2035 40.11; 2040 42.34; 2045 43.89; 2050 44.96; 2055 45.68; 2060 46.18
 
     # MWh per hdh
@@ -91,7 +113,8 @@ def build_co2_totals():
 if __name__ == '__main__':
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('build_energy_totals')
+        snakemake = mock_snakemake('build_energy_totals',
+                                   planning_horizons=2020)
     configure_logging(snakemake)
 
     space_heating_per_hdd, hot_water_per_day = build_energy_totals()

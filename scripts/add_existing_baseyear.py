@@ -12,7 +12,7 @@ import xarray as xr
 import pypsa
 import yaml
 
-from prepare_network import prepare_costs
+from add_electricity import load_costs
 from _helpers import override_component_attrs, define_spatial
 from functions import pro_names, offwind_nodes
 
@@ -113,14 +113,13 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
         # capacity is the capacity in MW at each node for this
         capacity = df.loc[grouping_year, generator]
         capacity = capacity[~capacity.isna()]
-        capacity = capacity[capacity > snakemake.config['existing_capacities']['threshold_capacity']]
+        capacity = capacity[capacity > config['existing_capacities']['threshold_capacity']]
 
         if generator in ['coal', 'solar', 'onwind', 'offwind']:
 
             # to consider electricity grid connection costs or a split between
             # solar utility and rooftop as well, rather take cost assumptions
             # from existing network than from the cost database
-            capital_cost = n.generators.loc[n.generators.carrier == generator, "capital_cost"].mean()
 
             if generator in ['solar', 'onwind', 'offwind']:
                 p_max_pu = n.generators_t.p_max_pu[capacity.index + " " + generator]
@@ -132,8 +131,8 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        p_nom=capacity,
                        p_nom_min=capacity,
                        p_nom_extendable=False,
-                       marginal_cost=costs.at[generator, 'VOM'],
-                       capital_cost=capital_cost,
+                       marginal_cost=costs.at[generator, 'marginal_cost'],
+                       capital_cost=costs.at[generator, 'capital_cost'],
                        efficiency=costs.at[generator, 'efficiency'],
                        p_max_pu=p_max_pu.rename(columns=n.generators.bus),
                        build_year=grouping_year,
@@ -149,8 +148,8 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        p_nom=capacity,
                        p_nom_min=capacity,
                        p_nom_extendable=False,
-                       marginal_cost=costs.at[generator, 'VOM'],
-                       capital_cost=capital_cost,
+                       marginal_cost=costs.at[generator, 'efficiency'] * costs.at[generator, 'marginal_cost'],
+                       capital_cost=costs.at[generator, 'efficiency'] * costs.at[generator, 'capital_cost'],
                        efficiency=costs.at[generator, 'efficiency'],
                        p_max_pu=p_max_pu,
                        build_year=grouping_year,
@@ -158,7 +157,7 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        )
         else:
             if generator == 'CHP':
-                bus0 = capacity.index + " CHP coal"
+                bus0 = capacity.index + " coal"
 
                 n.madd("Link",
                        capacity.index,
@@ -167,15 +166,15 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        bus1=capacity.index,
                        bus2=capacity.index + " central heat",
                        carrier=generator,
-                       marginal_cost=costs.at['coal', 'fuel'],  # NB: VOM is per MWel
-                       capital_cost=costs.at['central CHP', 'fixed'],  # NB: fixed cost is per MWel,
+                       marginal_cost=costs.at['central coal CHP', 'efficiency'] * costs.at['central coal CHP', 'VOM'],  # NB: VOM is per MWel
+                       capital_cost=costs.at['central coal CHP', 'efficiency'] * costs.at['central coal CHP', 'capital_cost'],  # NB: fixed cost is per MWel,
                        p_nom=capacity,
                        p_nom_min=capacity,
                        p_nom_extendable=False,
                        efficiency=config['chp_parameters']['eff_el'],
                        efficiency2=config['chp_parameters']['eff_th'],
                        build_year=grouping_year,
-                       lifetime=costs.at["central CHP", 'lifetime']
+                       lifetime=costs.at["central coal CHP", 'lifetime']
                        )
             else:
                 bus0 = capacity.index + " gas"
@@ -185,7 +184,7 @@ def add_power_capacities_installed_before_baseyear(n, grouping_years, costs, bas
                        bus0=bus0,
                        bus1=capacity.index,
                        marginal_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'VOM'],  # NB: VOM is per MWel
-                       capital_cost=costs.at["OCGT", 'efficiency'] * costs.at["OCGT", 'fixed'],
+                       capital_cost=costs.at["OCGT",'efficiency'] * costs.at["OCGT", 'capital_cost'],
                        # NB: fixed cost is per MWel
                        p_nom=capacity,
                        p_nom_min=capacity,
@@ -221,10 +220,14 @@ if __name__ == "__main__":
     # add_build_year_to_new_assets(n, baseyear)
 
     Nyears = n.snapshot_weightings.generators.sum() / 8760.
-    costs = prepare_costs(Nyears, snakemake.config)
 
-    grouping_years = snakemake.config['existing_capacities']['grouping_years']
-    add_power_capacities_installed_before_baseyear(n, grouping_years, costs, baseyear, snakemake.config)
+    config = snakemake.config
+    tech_costs = snakemake.input.tech_costs
+    cost_year = snakemake.wildcards.planning_horizons
+    costs = load_costs(tech_costs,config['costs'],config['electricity'],cost_year, Nyears)
+
+    grouping_years = config['existing_capacities']['grouping_years']
+    add_power_capacities_installed_before_baseyear(n, grouping_years, costs, baseyear, config)
 
     ## update renewable potentials
 
