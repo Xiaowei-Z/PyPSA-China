@@ -2,20 +2,17 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-version: 1.175.1 # linear 1; exponential 2; beta 3
+version: 1.175.3 # linear 1; exponential 2; beta 3
 logging_level: INFO
 foresight: "myopic"
 
 results_dir: 'results/'
 summary_dir: 'summary/'
 
-typology: "current+FCG"  # "current" or "FCG" or "current+FCG"
-
 scenario:
-  flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
-  CHP_emission_accounting: [ 'dresden' ]
-  pathway: ['linear']
+  pathway: ['linear-175']
+  topology: "current+FCG" # "current" or "FCG" or "current+FCG"
   co2_reduction:
     '2020': 0.0
     '2025': 0.16666667
@@ -26,7 +23,6 @@ scenario:
     '2050': 1.0
     '2055': 1.0
     '2060': 1.0
-  co2_total_parameter: 175
   opts: ['ll']
   attr: 'p_nom'
   planning_horizons:
@@ -39,6 +35,17 @@ scenario:
     - 2050
     - 2055
     - 2060
+
+heating_demand:
+  '2020': 0.39
+  '2025': 0.62
+  '2030': 0.99
+  '2035': 1.58
+  '2040': 2.51
+  '2045': 3.99
+  '2050': 6.34
+  '2055': 10.08
+  '2060': 16.02
 
 tmin: '-01-01 00:00'
 tmax: '-12-31 23:00'
@@ -93,12 +100,13 @@ retroII-fraction: 0.55
 heat_coupling: True
 add_heat_pumps: True
 add_boilers: True
+add_resistive_heater: False
 add_chp: True
 chp_parameters:
   eff_el: 0.3978
   eff_th: 0.5304
-add_solar_thermal: False
-solar_cf_correction: 0.788457
+add_solar_thermal: True
+solar_cf_correction: 0.85
 add_thermal_storage: True
 time_dep_hp_cop: True
 tes_tau: 3.
@@ -140,7 +148,7 @@ renewable:
       orientation:
         slope: 35.
         azimuth: 180.
-    capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
+    capacity_per_sqkm: 5.1 # ScholzPhd Tab 4.3.1: 170 MW/km^2
     potential: simple # or conservative
     correction_factor: 0.85
     natura: false

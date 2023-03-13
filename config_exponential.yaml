@@ -2,20 +2,17 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-version: 2.15.1 # linear 1; exponential 2; beta 3
+version: 2.175.9 # linear 1; exponential 2; beta 3
 logging_level: INFO
 foresight: "myopic"
 
 results_dir: 'results/'
 summary_dir: 'summary/'
 
-typology: "current+FCG"  # "current" or "FCG"
-
 scenario:
-  flexibility: [ 'seperate_co2_reduction' ]
   line_limits: [ 'opt' ]
-  CHP_emission_accounting: [ 'dresden' ]
-  pathway: ['exponential']
+  pathway: ['exponential175']
+  topology: "current+FCG" # "current" or "FCG" or "current+FCG"
   co2_reduction:
     '2020': 0.
     '2025': 0.22623418
@@ -26,7 +23,6 @@ scenario:
     '2050': 0.87480618
     '2055': 0.94359322
     '2060': 1.0
-  co2_total_parameter: 15
   opts: ['ll']
   attr: 'p_nom'
   planning_horizons:
@@ -39,6 +35,17 @@ scenario:
     - 2050
     - 2055
     - 2060
+
+#heating_demand:
+#  '2020': 1.9135
+#  '2025': 1.9135
+#  '2030': 1.9135
+#  '2035': 1.9135
+#  '2040': 1.9135
+#  '2045': 1.9135
+#  '2050': 1.9135
+#  '2055': 1.9135
+#  '2060': 1.9135
 
 tmin: '-01-01 00:00'
 tmax: '-12-31 23:00'
@@ -93,12 +100,13 @@ retroII-fraction: 0.55
 heat_coupling: True
 add_heat_pumps: True
 add_boilers: True
+add_resistive_heater: True
 add_chp: True
 chp_parameters:
   eff_el: 0.3978
   eff_th: 0.5304
 add_solar_thermal: False
-solar_cf_correction: 0.788457
+solar_cf_correction: 0.85
 add_thermal_storage: True
 time_dep_hp_cop: True
 tes_tau: 3.
@@ -140,7 +148,7 @@ renewable:
       orientation:
         slope: 35.
         azimuth: 180.
-    capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
+    capacity_per_sqkm: 5.1 # ScholzPhd Tab 4.3.1: 170 MW/km^2
     potential: simple # or conservative
     correction_factor: 0.85
     natura: false
@@ -252,15 +260,19 @@ plotting:
     "OCGT" : "#d35050"
     "gas-AC" : "#d35050"
     "gas" : "#d35050"
+    "gas boiler" : "#d35050"
     "gas-heat": "#d35050"
     "AC-gas": "#d35050"
     "CHP": "#b20101"
     "AC-heat" : "#b20101"
     "heat pump": "#b20101"
+    "resistive heater" : "#ff9000"
     "nuclear" : "#ff9000"
     "uranium" : "#ff9000"
     "coal" : "#707070"
     "coal-AC" : "#262626"
+    "CHP coal" : "#262626"
+    "CHP gas" : "#ea048a"
     "lignite" : "#9e5a01"
     "H2" : "#ea048a"
     "AC-H2" : "#ea048a"

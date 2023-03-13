@@ -4,7 +4,7 @@
 
 # Config for non-pathway study
 
-version: 0.0.0
+version: 0.0.1
 logging_level: INFO
 foresight: "non-pathway"
 
@@ -13,11 +13,22 @@ summary_dir: 'summary/'
 
 scenario:
   line_limits: [ 'opt' ]
-  pathway: ['linear']
-  co2_reduction: 1.0
+  pathway: ['non-pathway']
+  co2_reduction: 0.0
   opts: ['ll']
   topology: "current+FCG" # "current" or "FCG" or "current+FCG"
-  planning_horizons: 2060 # 2020 to 2060; 5-year step
+  planning_horizons: [2060] # 2020 to 2060; 5-year step
+
+heating_demand:
+  '2020': 0.39
+  '2025': 0.62
+  '2030': 0.99
+  '2035': 1.58
+  '2040': 2.51
+  '2045': 3.99
+  '2050': 6.34
+  '2055': 10.08
+  '2060': 16.02
 
 tmin: '-01-01 00:00'
 tmax: '-12-31 23:00'
@@ -27,7 +38,7 @@ frequency: 8.
 logging:
   level: INFO
   format: '%(levelname)s:%(name)s:%(message)s'
-  
+
 enable:
   build_cutout: false
   retrieve_cutout: false
@@ -61,17 +72,17 @@ add_coal: True
 add_gas: True
 add_nuclear: True
 add_methanation: True
-add_helmeth: True
 
 heat_coupling: True
-add_heat_pumps: True
+add_heat_pumps: False
 add_boilers: True
+add_resistive_heater: False
 add_chp: True
 chp_parameters:
   eff_el: 0.3978
   eff_th: 0.5304
 add_solar_thermal: False
-solar_cf_correction: 0.788457
+solar_cf_correction: 0.85
 add_thermal_storage: True
 time_dep_hp_cop: True
 tes_tau: 3.
@@ -107,7 +118,7 @@ renewable:
       orientation:
         slope: 35.
         azimuth: 180.
-    capacity_per_sqkm: 1.7 # ScholzPhd Tab 4.3.1: 170 MW/km^2
+    capacity_per_sqkm: 5.1 # ScholzPhd Tab 4.3.1: 170 MW/km^2
     potential: simple # or conservative
     correction_factor: 0.85
     natura: false
@@ -145,7 +156,6 @@ hydro:
   PHS_max_hours: 24.
 
 costs:
-  year: 2030
   lifetime: 25
   discountrate: 0.07 # From a Lion Hirth paper, also reflects average of Noothout et al 2016
   USD2013_to_EUR2013: 0.7532 # [EUR/USD] ECB: https://www.ecb.europa.eu/stats/exchange/eurofxref/html/eurofxref-graph-usd.en.html
