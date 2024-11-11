@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2023 The PyPSA-China Authors
+# SPDX-FileCopyrightText: 2023 The PyPSA-China Authors
 #
 # SPDX-License-Identifier: CC0-1.0
 .idea
@@ -7,4 +7,4 @@ logs
 results
 cutouts
 .snakemake
-data/landuse_availability
+data-backup
